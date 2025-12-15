@@ -5,6 +5,17 @@ import { Tldraw } from 'tldraw'
 import { useSyncDemo } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 
+function generateUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID()
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function ( c ) {
+        const r = Math.random() * 16 | 0
+        const v = c === 'x' ? r : (r & 0x3 | 0x8)
+        return v.toString(16)
+    })
+}
+
 export default function TldrawEditor() {
     const [roomId, setRoomId] = useState<string>('')
 
@@ -13,7 +24,7 @@ export default function TldrawEditor() {
         let room = params.get('room')
 
         if (!room) {
-            room = crypto.randomUUID()
+            room = generateUUID()
             const newUrl = `${window.location.pathname}?room=${room}`
             window.history.replaceState({}, '', newUrl)
         }
@@ -54,8 +65,11 @@ export default function TldrawEditor() {
     }
 
     return (
-        <div className="w-screen h-screen">
-            <Tldraw store={store}/>
+        <div style={{position: 'fixed', inset: 0}}>
+            <Tldraw
+                store={store}
+                deepLinks
+            />
         </div>
     )
 }
