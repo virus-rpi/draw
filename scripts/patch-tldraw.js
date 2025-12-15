@@ -5,84 +5,116 @@ const path = require('path')
 
 console.log('Patching tldraw license...')
 
-// Patch LicenseManager.ts
-const licenseManagerPath = path.join(
+function patchFile( filePath, searchPattern, replacement, description ) {
+    try {
+        if (!fs.existsSync(filePath)) {
+            console.warn(`⚠️  File not found: ${filePath}`)
+            return false
+        }
+
+        let content = fs.readFileSync(filePath, 'utf8')
+
+        // Check if already patched
+        if (content.includes('// Patched to')) {
+            console.log(`⏭️  Already patched: ${description}`)
+            return true
+        }
+
+        if (!searchPattern.test(content)) {
+            console.warn(`⚠️  Pattern not found in ${description}`)
+            return false
+        }
+
+        // Use regex with multiline and dotall flags for more robust matching
+        content = content.replace(searchPattern, replacement)
+        fs.writeFileSync(filePath, content, 'utf8')
+        console.log(`✅ Successfully patched: ${description}`)
+        return true
+    } catch (error) {
+        console.error(`❌ Error patching ${description}:`, error.message)
+        return false
+    }
+}
+
+// Patch LicenseManager.ts (source)
+const licenseManagerTsPath = path.join(
     __dirname,
     '../node_modules/@tldraw/editor/src/lib/license/LicenseManager.ts',
 )
 
-try {
-    if (!fs.existsSync(licenseManagerPath)) {
-        console.error(`File not found: ${licenseManagerPath}`)
-        process.exit(1)
-    }
-
-    let content = fs.readFileSync(licenseManagerPath, 'utf8')
-
-    // Replace the getLicenseState function to always return 'licensed'
-    const getLicenseStateOriginal = `export function getLicenseState(`
-
-    if (content.includes(getLicenseStateOriginal)) {
-        // Find the entire function and replace it
-        const functionStart = content.indexOf(getLicenseStateOriginal)
-        const functionEnd = content.indexOf('\n}', functionStart + 500) + 2
-        const originalFunction = content.substring(functionStart, functionEnd)
-
-        const patchedFunction = `export function getLicenseState(
-	result: LicenseFromKeyResult,
-	outputMessages: (messages: string[]) => void,
-	isDevelopment: boolean
+const licenseManagerPatched = patchFile(
+    licenseManagerTsPath,
+    /export function getLicenseState\([^)]+\)[^{]+{[\s\S]*?\n}/,
+    `export function getLicenseState(
+\tresult: LicenseFromKeyResult,
+\toutputMessages: (messages: string[]) => void,
+\tisDevelopment: boolean
 ): LicenseState {
-	// Patched to always return 'licensed'
-	return 'licensed'
-}`
+\t// Patched to always return 'licensed'
+\treturn 'licensed'
+}`,
+    'LicenseManager.ts',
+)
 
-        content = content.replace(originalFunction, patchedFunction)
-        fs.writeFileSync(licenseManagerPath, content, 'utf8')
-        console.log('✅ Successfully patched LicenseManager.ts')
-    } else {
-        console.warn('⚠️  getLicenseState function not found or already patched')
-    }
-} catch (error) {
-    console.error('❌ Error patching LicenseManager.ts:', error.message)
-    process.exit(1)
-}
-
-// Patch LicenseProvider.tsx
-const licenseProviderPath = path.join(
+// Patch LicenseProvider.tsx (source)
+const licenseProviderTsxPath = path.join(
     __dirname,
     '../node_modules/@tldraw/editor/src/lib/license/LicenseProvider.tsx',
 )
 
-try {
-    if (!fs.existsSync(licenseProviderPath)) {
-        console.error(`File not found: ${licenseProviderPath}`)
-        process.exit(1)
-    }
+const licenseProviderPatched = patchFile(
+    licenseProviderTsxPath,
+    /function shouldHideEditorAfterDelay\(licenseState: string\): boolean {\s+return licenseState === 'expired' \|\| licenseState === 'unlicensed-production'\s+}/,
+    `function shouldHideEditorAfterDelay(licenseState: string): boolean {
+\t// Patched to never hide the editor
+\treturn false
+}`,
+    'LicenseProvider.tsx',
+)
 
-    let content = fs.readFileSync(licenseProviderPath, 'utf8')
+// Also patch the compiled files directly (since we can't rebuild without tsconfig)
+console.log('\n🔨 Patching compiled files...')
+const editorPath = path.join(__dirname, '../node_modules/@tldraw/editor')
 
-    // Replace the shouldHideEditorAfterDelay function to always return false
-    const shouldHideOriginal = `function shouldHideEditorAfterDelay(licenseState: string): boolean {
-	return licenseState === 'expired' || licenseState === 'unlicensed-production'
-}`
+patchFile(
+    path.join(editorPath, 'dist-cjs/lib/license/LicenseManager.js'),
+    /function getLicenseState\(result, outputMessages, isDevelopment\) {[\s\S]*?\n}/,
+    `function getLicenseState(result, outputMessages, isDevelopment) {
+  // Patched to always return 'licensed'
+  return "licensed";
+}`,
+    'LicenseManager.js (CommonJS)',
+)
 
-    const shouldHidePatched = `function shouldHideEditorAfterDelay(licenseState: string): boolean {
-	// Patched to never hide the editor
-	return false
-}`
+patchFile(
+    path.join(editorPath, 'dist-esm/lib/license/LicenseManager.mjs'),
+    /function getLicenseState\(result, outputMessages, isDevelopment\) {[\s\S]*?\n}/,
+    `function getLicenseState(result, outputMessages, isDevelopment) {
+  // Patched to always return 'licensed'
+  return "licensed";
+}`,
+    'LicenseManager.mjs (ESM)',
+)
 
-    if (content.includes(shouldHideOriginal)) {
-        content = content.replace(shouldHideOriginal, shouldHidePatched)
-        fs.writeFileSync(licenseProviderPath, content, 'utf8')
-        console.log('✅ Successfully patched LicenseProvider.tsx')
-    } else {
-        console.warn('⚠️  shouldHideEditorAfterDelay function not found or already patched')
-    }
-} catch (error) {
-    console.error('❌ Error patching LicenseProvider.tsx:', error.message)
-    process.exit(1)
-}
+patchFile(
+    path.join(editorPath, 'dist-cjs/lib/license/LicenseProvider.js'),
+    /function shouldHideEditorAfterDelay\(licenseState\) {\s+return licenseState === "expired" \|\| licenseState === "unlicensed-production";\s+}/,
+    `function shouldHideEditorAfterDelay(licenseState) {
+  // Patched to never hide the editor
+  return false;
+}`,
+    'LicenseProvider.js (CommonJS)',
+)
 
-console.log('✅ License patch completed successfully!')
+patchFile(
+    path.join(editorPath, 'dist-esm/lib/license/LicenseProvider.mjs'),
+    /function shouldHideEditorAfterDelay\(licenseState\) {\s+return licenseState === "expired" \|\| licenseState === "unlicensed-production";\s+}/,
+    `function shouldHideEditorAfterDelay(licenseState) {
+  // Patched to never hide the editor
+  return false;
+}`,
+    'LicenseProvider.mjs (ESM)',
+)
+
+console.log('\n✅ License patch completed successfully!')
 
