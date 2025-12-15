@@ -54,10 +54,28 @@ Each room persists for the duration of the session. To join an existing room, si
 
 This app can be deployed to any platform that supports Next.js:
 
-- Vercel (recommended)
-- Netlify
-- Railway
-- Self-hosted
+- **Vercel** (recommended) - Zero configuration deployment
+- **Netlify** - Automatic builds and deployments
+- **Railway** - Simple container-based hosting
+- **Self-hosted** - Docker or Node.js server
+
+### Environment Considerations
+
+The application uses tldraw's demo sync server for real-time collaboration. For production use, consider:
+- Setting up your own sync server using [@tldraw/sync](https://www.npmjs.com/package/@tldraw/sync)
+- Or deploying with PartyKit for serverless real-time sync
+
+## Known Issues
+
+- Some dev dependencies (eslint-config-next) have vulnerability warnings. These only affect development and don't impact production security.
+- The tldraw library (v2.4.x) has some transitive dependencies with moderate vulnerabilities. Consider upgrading to tldraw v4 when it becomes stable.
+
+## Security
+
+- Room IDs are generated using `crypto.randomUUID()` for cryptographic security
+- No authentication is required - rooms are accessible to anyone with the URL
+- Data is not persisted beyond the session
+- For production use with data persistence, implement proper authentication and authorization
 
 ## License
 
