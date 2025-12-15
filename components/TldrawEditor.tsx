@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Tldraw } from "tldraw";
+import { useSyncDemo } from "@tldraw/sync";
 import "tldraw/tldraw.css";
 
 export default function TldrawEditor() {
@@ -13,8 +14,8 @@ export default function TldrawEditor() {
     let room = params.get("room");
 
     if (!room) {
-      // Generate a simple room ID
-      room = Math.random().toString(36).substring(2, 15);
+      // Generate a cryptographically secure room ID
+      room = crypto.randomUUID();
       // Update URL without reload
       const newUrl = `${window.location.pathname}?room=${room}`;
       window.history.replaceState({}, "", newUrl);
@@ -22,6 +23,9 @@ export default function TldrawEditor() {
 
     setRoomId(room);
   }, []);
+
+  // Use tldraw sync demo for multiplayer collaboration
+  const store = useSyncDemo({ roomId });
 
   if (!roomId) {
     return (
@@ -33,7 +37,7 @@ export default function TldrawEditor() {
 
   return (
     <div className="w-screen h-screen">
-      <Tldraw />
+      <Tldraw store={store} />
     </div>
   );
 }
