@@ -5,6 +5,7 @@ interface ColorLockDialogProps {
     isLocking: boolean
     onConfirm: (color: string, password: string) => void
     onCancel: () => void
+    lockedColors?: Array<{ color: string; userId: string }>
 }
 
 const PRESET_COLORS = [
@@ -22,9 +23,13 @@ const PRESET_COLORS = [
     { name: 'red', label: 'Red', value: 'red' },
 ]
 
-export function ColorLockDialog({ color, isLocking, onConfirm, onCancel }: ColorLockDialogProps) {
+export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedColors = [] }: ColorLockDialogProps) {
     const [password, setPassword] = useState('')
     const [selectedColor, setSelectedColor] = useState(color)
+    
+    const isColorLocked = (colorValue: string) => {
+        return lockedColors.some(lock => lock.color === colorValue)
+    }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault()
@@ -62,8 +67,11 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel }: Color
                 onClick={(e) => e.stopPropagation()}
             >
                 <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
-                    {isLocking ? 'Lock Color' : 'Unlock Color'}
+                    Lock / Unlock / Take Over Color
                 </h2>
+                <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
+                    Enter the password to lock or take over a color. Use the same password to unlock it later.
+                </p>
                 <form onSubmit={handleSubmit}>
                     <div style={{ marginBottom: '16px' }}>
                         <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>
@@ -83,7 +91,7 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel }: Color
                         >
                             {PRESET_COLORS.map((c) => (
                                 <option key={c.value} value={c.value}>
-                                    {c.label}
+                                    {c.label} {isColorLocked(c.value) ? '🔒' : ''}
                                 </option>
                             ))}
                         </select>
@@ -132,7 +140,7 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel }: Color
                                 fontSize: '14px',
                             }}
                         >
-                            {isLocking ? 'Lock' : 'Unlock'}
+                            {isColorLocked(selectedColor) ? 'Unlock / Take Over' : 'Lock'}
                         </button>
                     </div>
                 </form>

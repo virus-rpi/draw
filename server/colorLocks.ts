@@ -34,15 +34,22 @@ export function lockColor(
     color: string,
     userId: string,
     password: string
-): { success: boolean; message: string; previousLock?: string } {
+): { success: boolean; message: string; previousLock?: string; tookOver?: boolean } {
     const state = getRoomColorLocks(roomId)
     
+    let tookOver = false
     // Check if color is already locked
     if (state.locks.has(color)) {
         const existingLock = state.locks.get(color)!
+        
+        // If locked by someone else, verify password to take over
         if (existingLock.userId !== userId) {
-            return { success: false, message: 'Color is already locked by another user' }
+            if (!verifyPassword(password, existingLock.passwordHash)) {
+                return { success: false, message: 'Color is locked by another user. Invalid password for takeover.' }
+            }
+            tookOver = true
         }
+        // If locked by the same user, allow re-locking with new password
     }
     
     // Check if user already has a lock on a different color
@@ -64,12 +71,18 @@ export function lockColor(
         timestamp: Date.now(),
     })
     
+    let message = `Successfully locked ${color}`
+    if (tookOver) {
+        message = `Successfully took over ${color} lock`
+    } else if (previousLock) {
+        message = `Successfully locked ${color}. Previous lock on ${previousLock} was removed.`
+    }
+    
     return { 
         success: true, 
-        message: previousLock 
-            ? `Successfully locked ${color}. Previous lock on ${previousLock} was removed.`
-            : `Successfully locked ${color}`,
-        previousLock
+        message,
+        previousLock,
+        tookOver
     }
 }
 

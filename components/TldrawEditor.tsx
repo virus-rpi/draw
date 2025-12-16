@@ -70,11 +70,13 @@ function CustomQuickActions( {
 function CustomStylePanel({ 
     myLockedColor, 
     canUseColor, 
-    isColorLocked 
+    isColorLocked,
+    lockedColors
 }: { 
     myLockedColor: string | null
     canUseColor: (color: string) => boolean
     isColorLocked: (color: string) => boolean
+    lockedColors: Array<{ color: string; userId: string }>
 }) {
     const editor = useEditor()
     const currentColor = useValue('current color', () => {
@@ -87,14 +89,19 @@ function CustomStylePanel({
     return (
         <DefaultStylePanel>
             <DefaultStylePanelContent />
-            {myLockedColor && (
+            {lockedColors.length > 0 && (
                 <div style={{
                     padding: '8px',
                     fontSize: '12px',
                     color: '#666',
                     borderTop: '1px solid #eee',
                 }}>
-                    🔒 Locked: {myLockedColor}
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>🔒 Locked Colors:</div>
+                    {lockedColors.map((lock) => (
+                        <div key={lock.color} style={{ paddingLeft: '8px' }}>
+                            • {lock.color} {lock.userId === editor.user.getId() ? '(You)' : ''}
+                        </div>
+                    ))}
                 </div>
             )}
         </DefaultStylePanel>
@@ -112,7 +119,7 @@ export default function TldrawEditor() {
     const editorRef = useRef<Editor | null>(null)
 
     const colorLock = useColorLock(roomId, userId)
-    const { myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked } = colorLock
+    const { myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors } = colorLock
 
     useEffect(() => {
         writeOwnOnlyRef.current = writeOwnOnly
@@ -177,32 +184,33 @@ export default function TldrawEditor() {
         // Default to black color - user will select the color in the dialog
         let currentColor = 'black'
         
-        // Check if user has a locked color already
-        if (myLockedColor) {
-            currentColor = myLockedColor
-            setColorLockMode('unlock')
-        } else {
-            // Try to get color from selected shapes as a hint
-            const selectedShapes = editor.getSelectedShapes()
-            if (selectedShapes.length > 0) {
-                const firstShape = selectedShapes[0] as any
-                if (firstShape?.props?.color) {
-                    currentColor = firstShape.props.color
-                }
+        // Try to get color from selected shapes as a hint
+        const selectedShapes = editor.getSelectedShapes()
+        if (selectedShapes.length > 0) {
+            const firstShape = selectedShapes[0] as any
+            if (firstShape?.props?.color) {
+                currentColor = firstShape.props.color
             }
-            setColorLockMode('lock')
         }
+        
+        // Always set to lock mode - the dialog will work for both lock and unlock
+        setColorLockMode('lock')
 
         setSelectedColorForLock(currentColor)
         setShowColorLockDialog(true)
     }
 
     const handleColorLockConfirm = async (color: string, password: string) => {
+        // Check if this color is locked by the current user
+        const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
+        
         let result
-        if (colorLockMode === 'lock') {
-            result = await lockColor(color, password)
-        } else {
+        if (myLock) {
+            // User owns this lock, so unlock it
             result = await unlockColor(color, password)
+        } else {
+            // Either not locked or locked by someone else - try to lock/takeover
+            result = await lockColor(color, password)
         }
         
         if (result.success) {
@@ -244,6 +252,7 @@ export default function TldrawEditor() {
                 myLockedColor={myLockedColor}
                 canUseColor={canUseColor}
                 isColorLocked={isColorLocked}
+                lockedColors={lockedColors}
             />
         ),
     }
@@ -332,6 +341,27 @@ export default function TldrawEditor() {
                             return next
                         })
 
+                        // Prevent selecting locked colors in the UI
+                        editor.sideEffects.registerBeforeChangeHandler('instance', ( prev, next ) => {
+                            // Check if stylesForNextShape is changing
+                            const prevStyles = (prev as any).stylesForNextShape
+                            const nextStyles = (next as any).stylesForNextShape
+                            
+                            if (nextStyles && nextStyles.color && prevStyles?.color !== nextStyles.color) {
+                                const newColor = nextStyles.color
+                                if (!canUseColor(newColor)) {
+                                    console.log('Locked color selected, reverting to previous color')
+                                    // Show an alert to inform the user
+                                    setTimeout(() => {
+                                        alert(`The color "${newColor}" is locked by another user. Click Lock/Unlock Color to take it over with the password.`)
+                                    }, 0)
+                                    return prev
+                                }
+                            }
+                            
+                            return next
+                        })
+
                         editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
                             if (writeOwnOnlyRef.current && shape.meta.ownerId !== editor.user.getId()) {
                                 return false
@@ -356,6 +386,7 @@ export default function TldrawEditor() {
                     isLocking={colorLockMode === 'lock'}
                     onConfirm={handleColorLockConfirm}
                     onCancel={() => setShowColorLockDialog(false)}
+                    lockedColors={lockedColors}
                 />
             )}
         </>
