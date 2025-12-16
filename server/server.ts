@@ -6,7 +6,7 @@ import { loadAsset, storeAsset } from './assets'
 import { makeOrLoadRoom } from './rooms'
 import { unfurl } from './unfurl'
 
-const PORT = 5858
+const PORT = parseInt(process.env.PORT || '5858', 10)
 
 // For this example we use a simple fastify server with the official websocket plugin
 // To keep things simple we're skipping normal production concerns like rate limiting and input validation.
@@ -27,11 +27,14 @@ app.register(async (app) => {
 		// be attached before doing any kind of async work
 		// https://github.com/fastify/fastify-websocket?tab=readme-ov-file#attaching-event-handlers
 		// We collect messages that came in before the room was loaded, and re-emit them
-		// after the room is loaded.
+		// after the room is loaded. Limit to 100 messages to prevent memory exhaustion.
 		const caughtMessages: RawData[] = []
+		const MAX_CAUGHT_MESSAGES = 100
 
 		const collectMessagesListener = (message: RawData) => {
-			caughtMessages.push(message)
+			if (caughtMessages.length < MAX_CAUGHT_MESSAGES) {
+				caughtMessages.push(message)
+			}
 		}
 
 		socket.on('message', collectMessagesListener)
@@ -50,9 +53,18 @@ app.register(async (app) => {
 	})
 
 	// To enable blob storage for assets, we add a simple endpoint supporting PUT and GET requests
-	// But first we need to allow all content types with no parsing, so we can handle raw data
-	app.addContentTypeParser('*', (_, __, done) => done(null))
-	app.put('/uploads/:id', {}, async (req, res) => {
+	app.put('/uploads/:id', {
+		// Allow raw body for file uploads
+		addContentTypeParser: {
+			parse: (_, payload, done) => {
+				let data = Buffer.alloc(0)
+				payload.on('data', (chunk) => {
+					data = Buffer.concat([data, chunk])
+				})
+				payload.on('end', () => done(null, data))
+			}
+		}
+	}, async (req, res) => {
 		const id = (req.params as any).id as string
 		await storeAsset(id, req.raw)
 		res.send({ ok: true })

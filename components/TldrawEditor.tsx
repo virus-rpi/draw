@@ -55,7 +55,7 @@ export default function TldrawEditor() {
 
 
     // Use custom sync server if specified, otherwise fall back to demo sync
-    const SYNC_SERVER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL
+    const SYNC_SERVER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL?.trim()
     const USE_DEMO_SYNC = !SYNC_SERVER_URL
 
     const store = useSync({

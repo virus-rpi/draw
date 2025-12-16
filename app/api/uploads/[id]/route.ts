@@ -6,12 +6,18 @@ import { join, resolve } from 'path'
 // In production, you should use a proper storage service like Vercel Blob
 const DIR = resolve('./.assets')
 
+// Sanitize asset ID to prevent path traversal attacks
+function sanitizeAssetId(id: string): string {
+    return id.replace(/[^a-zA-Z0-9_.-]/g, '_')
+}
+
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id
+        const { id: rawId } = await params
+        const id = sanitizeAssetId(rawId)
         await mkdir(DIR, { recursive: true })
         
         // Get the raw body as ArrayBuffer
@@ -32,10 +38,11 @@ export async function PUT(
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const id = params.id
+        const { id: rawId } = await params
+        const id = sanitizeAssetId(rawId)
         const data = await readFile(join(DIR, id))
         
         return new NextResponse(data, {
