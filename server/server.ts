@@ -123,6 +123,27 @@ app.register(async ( app ) => {
         const lockedColor = getUserLockedColor(roomId, userId)
         return { color: lockedColor || null }
     })
+
+    // WebSocket endpoint for color lock updates
+    app.get('/color-locks-ws/:roomId', {websocket: true}, async ( socket, req ) => {
+        const roomId = (req.params as any).roomId as string
+        console.log(`Color lock WebSocket connection to room ${roomId}`)
+        
+        // Send initial state
+        const locks = getAllLockedColors(roomId)
+        socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+        
+        // Keep connection alive and send updates when color locks change
+        const interval = setInterval(() => {
+            const locks = getAllLockedColors(roomId)
+            socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+        }, 1000)
+        
+        socket.on('close', () => {
+            console.log(`Color lock WebSocket disconnected from room ${roomId}`)
+            clearInterval(interval)
+        })
+    })
 })
 
 app.listen({port: PORT, host: '0.0.0.0'}, ( err ) => {

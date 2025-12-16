@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState, useRef } from 'react'
 
 export interface LockedColor {
     color: string
@@ -18,15 +18,21 @@ const getSyncServerUrl = () => {
     return 'http://localhost:5858'
 }
 
+const getWsServerUrl = () => {
+    const baseUrl = getSyncServerUrl()
+    return baseUrl.replace(/^http/, 'ws')
+}
+
 export function useColorLock(roomId: string, userId: string) {
     const [lockedColors, setLockedColors] = useState<LockedColor[]>([])
     const [myLockedColor, setMyLockedColor] = useState<string | null>(null)
+    const wsRef = useRef<WebSocket | null>(null)
 
     const fetchLockedColors = useCallback(async () => {
         if (!roomId) return
         
         try {
-            const response = await fetch(`${getSyncServerUrl()}/color-locks/${roomId}`)
+            const response = await fetch(`${getSyncServerUrl()}/color-locks/${encodeURIComponent(roomId)}`)
             const data = await response.json()
             setLockedColors(data.locks || [])
             
@@ -39,17 +45,53 @@ export function useColorLock(roomId: string, userId: string) {
     }, [roomId, userId])
 
     useEffect(() => {
+        if (!roomId || !userId) return
+
+        // Initial fetch
         fetchLockedColors()
         
-        // Poll for updates every 5 seconds
-        const interval = setInterval(fetchLockedColors, 5000)
+        // Connect to WebSocket for real-time updates
+        const wsUrl = `${getWsServerUrl()}/color-locks-ws/${encodeURIComponent(roomId)}`
+        const ws = new WebSocket(wsUrl)
         
-        return () => clearInterval(interval)
-    }, [fetchLockedColors])
+        ws.onopen = () => {
+            console.log('Color lock WebSocket connected')
+        }
+        
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data)
+                if (data.type === 'color-lock-update') {
+                    setLockedColors(data.locks || [])
+                    const myLock = data.locks?.find((lock: LockedColor) => lock.userId === userId)
+                    setMyLockedColor(myLock?.color || null)
+                }
+            } catch (error) {
+                console.error('Failed to parse WebSocket message:', error)
+            }
+        }
+        
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error)
+        }
+        
+        ws.onclose = () => {
+            console.log('Color lock WebSocket disconnected')
+        }
+        
+        wsRef.current = ws
+        
+        return () => {
+            if (wsRef.current) {
+                wsRef.current.close()
+                wsRef.current = null
+            }
+        }
+    }, [roomId, userId, fetchLockedColors])
 
     const lockColor = useCallback(async (color: string, password: string): Promise<ColorLockResult> => {
         try {
-            const response = await fetch(`${getSyncServerUrl()}/color-lock/${roomId}`, {
+            const response = await fetch(`${getSyncServerUrl()}/color-lock/${encodeURIComponent(roomId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -72,7 +114,7 @@ export function useColorLock(roomId: string, userId: string) {
 
     const unlockColor = useCallback(async (color: string, password: string): Promise<ColorLockResult> => {
         try {
-            const response = await fetch(`${getSyncServerUrl()}/color-unlock/${roomId}`, {
+            const response = await fetch(`${getSyncServerUrl()}/color-unlock/${encodeURIComponent(roomId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

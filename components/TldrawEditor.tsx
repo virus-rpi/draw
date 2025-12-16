@@ -179,14 +179,26 @@ export default function TldrawEditor() {
         const editor = editorRef.current
         if (!editor) return
 
-        // Get the current color from selected shapes or editor state
-        const selectedShapes = editor.getSelectedShapes()
+        // Get the current drawing color from editor's instance state
         let currentColor = 'black' // default
-
+        
+        const selectedShapes = editor.getSelectedShapes()
         if (selectedShapes.length > 0) {
+            // If shapes are selected, use the first shape's color
             const firstShape = selectedShapes[0] as any
             if (firstShape?.props?.color) {
                 currentColor = firstShape.props.color
+            }
+        } else {
+            // No shapes selected - get the current style for next shape
+            try {
+                const instanceState = editor.getInstanceState()
+                const stylesForNextShape = (instanceState as any).stylesForNextShape
+                if (stylesForNextShape && stylesForNextShape.color) {
+                    currentColor = stylesForNextShape.color
+                }
+            } catch (e) {
+                console.log('Using default color')
             }
         }
 
@@ -228,19 +240,27 @@ export default function TldrawEditor() {
             return
         }
 
-        // Set the color on selected shapes
-        const selectedShapes = editor.getSelectedShapes()
-        if (selectedShapes.length > 0) {
-            editor.updateShapes(
-                selectedShapes.map((shape) => ({
-                    id: shape.id,
-                    type: shape.type,
-                    props: {
-                        ...(shape as any).props,
-                        color: color,
-                    },
-                }))
-            )
+        try {
+            // Update selected shapes if any
+            const selectedShapes = editor.getSelectedShapes()
+            if (selectedShapes.length > 0) {
+                editor.updateShapes(
+                    selectedShapes.map((shape) => ({
+                        id: shape.id,
+                        type: shape.type,
+                        props: {
+                            ...(shape as any).props,
+                            color: color,
+                        },
+                    }))
+                )
+                alert(`Applied custom color ${color} to selected shapes`)
+            } else {
+                alert('Please select one or more shapes first to apply the custom color')
+            }
+        } catch (error) {
+            console.error('Failed to set custom color:', error)
+            alert('Failed to apply custom color')
         }
     }
 
