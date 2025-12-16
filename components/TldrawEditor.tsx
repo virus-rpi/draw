@@ -54,13 +54,27 @@ export default function TldrawEditor() {
     }, [roomId])
 
 
-    const SYNC_SERVER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL?.trim()
-    const USE_DEMO_SYNC = !SYNC_SERVER_URL
+    // Connect to sync server
+    // For Vercel: Uses external sync server (Railway)
+    // For self-hosted: Uses integrated server on same domain
+    const getSyncUrl = () => {
+        // If custom sync server URL is provided, use it
+        if (process.env.NEXT_PUBLIC_SYNC_SERVER_URL) {
+            return `${process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/connect/${roomId}`
+        }
+        
+        // Otherwise, use WebSocket on same host (for self-hosted deployments)
+        if (typeof window !== 'undefined') {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+            const wsHost = window.location.host
+            return `${wsProtocol}//${wsHost}/connect/${roomId}`
+        }
+        
+        return `ws://localhost:3000/connect/${roomId}`
+    }
 
     const store = useSync({
-        uri: USE_DEMO_SYNC
-            ? `https://demo.tldraw.xyz/connect/${roomId}`
-            : `${SYNC_SERVER_URL}/connect/${roomId}`,
+        uri: getSyncUrl(),
         assets: multiplayerAssets,
     })
 

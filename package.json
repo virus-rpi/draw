@@ -3,13 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "concurrently -n server,client -c red,blue \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:server": "tsx watch ./server/server.ts",
-    "dev:client": "next dev",
+    "dev": "node server.js",
     "build": "next build",
-    "start": "concurrently -n server,client -c red,blue \"npm run start:server\" \"npm run start:client\"",
-    "start:server": "tsx ./server/server.ts",
-    "start:client": "next start",
+    "start": "NODE_ENV=production node server.js",
+    "start:sync-server": "tsx ./server/server.ts",
     "lint": "next lint",
     "postinstall": "node scripts/patch-tldraw.js"
   },
@@ -29,7 +26,8 @@
     "react-dom": "^19.2.3",
     "tldraw": "^4.2.1",
     "tsx": "^4.21.0",
-    "unfurl.js": "^6.4.0"
+    "unfurl.js": "^6.4.0",
+    "ws": "^8.18.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

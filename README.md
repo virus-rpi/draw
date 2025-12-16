@@ -1,16 +1,17 @@
 # Draw - Collaborative Whiteboard
 
-A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.com).
+A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.com) with **integrated WebSocket sync server**.
 
 ## Features
 
 - 🎨 **Full-featured drawing tools** - Pen, shapes, text, images, and more
-- 👥 **Multiplayer ready** - Real-time collaboration with custom sync server
+- 👥 **Real-time multiplayer** - Integrated WebSocket server for live collaboration
 - 🎯 **Minimalist UI** - Clean, modern interface that gets out of your way
 - 🔗 **Easy sharing** - Each session gets a unique room ID in the URL
 - ⚡ **Fast & responsive** - Built with Next.js and React
-- 💾 **Asset support** - Upload and manage images, videos, and other media
+- 💾 **Persistent storage** - Vercel Blob for assets, SQLite for rooms
 - 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
+- 🚀 **One-command deployment** - Automated Vercel + Railway setup
 
 ## Getting Started
 
@@ -28,9 +29,26 @@ npm install
 
 ### Development
 
-**Local Development Setup**
+**Quick Start**
 
-For asset uploads to work locally, you need a Vercel Blob token:
+```bash
+# Install dependencies
+npm install
+
+# Start integrated server (Next.js + WebSocket sync)
+npm run dev
+```
+
+This starts the integrated server with:
+- Next.js app on `http://localhost:3000`
+- WebSocket sync server on the same port
+- In-memory room storage
+
+Open [http://localhost:3000](http://localhost:3000) with your browser.
+
+**Optional: Enable Asset Uploads Locally**
+
+For asset uploads to work in local development:
 
 1. Create a `.env.local` file:
    ```bash
@@ -43,55 +61,93 @@ For asset uploads to work locally, you need a Vercel Blob token:
    - Copy the `BLOB_READ_WRITE_TOKEN`
    - Add it to `.env.local`
 
-**Option 1: With Custom Sync Server (Local Development)**
-
-Run both the sync server and Next.js client:
-
-```bash
-npm run dev
-```
-
-This will start:
-- Sync server on `http://localhost:5858` (WebSocket + HTTP)
-- Next.js app on `http://localhost:3000`
-
-**Option 2: Client Only (Uses tldraw demo sync)**
-
-Run just the Next.js client (uses tldraw's demo sync server):
-
-```bash
-npm run dev:client
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser.
-
 ### Production
 
-Build and start for production:
+**Vercel Deployment with Integrated Sync Server**
+
+The app uses an integrated sync server architecture. For Vercel, we deploy in two parts:
+
+**Automated Deployment (One Command)**
+
+```bash
+./scripts/deploy-to-vercel.sh
+```
+
+This script automatically:
+1. Deploys sync server to Railway (free tier)
+2. Deploys frontend to Vercel
+3. Connects them with environment variables
+
+**Manual Deployment**
+
+1. **Deploy Sync Server to Railway:**
+   ```bash
+   railway login
+   railway init
+   railway up
+   ```
+
+2. **Deploy Frontend to Vercel:**
+   - Push to GitHub
+   - Import to Vercel
+   - Add environment variable: `NEXT_PUBLIC_SYNC_SERVER_URL` = your Railway URL
+   - Deploy
+
+**Self-Hosted (Integrated Server)**
+
+For traditional hosting, everything runs together:
 
 ```bash
 npm run build
 npm start
 ```
 
+This runs Next.js and WebSocket server on the same port (no separate deployment needed).
+
 ## Architecture
+
+### Integrated Server Design
+
+This app features an **integrated WebSocket sync server** that handles real-time collaboration:
+
+**For Self-Hosted / Local Development:**
+- `server.js` - Custom Next.js server with integrated WebSocket support
+- Runs Next.js app and WebSocket server on single port
+- In-memory room storage (or SQLite via `/server` directory)
+- One command to start everything: `npm run dev`
+
+**For Vercel Deployment:**
+- Frontend: Deployed to Vercel (serverless)
+- Sync Server: Deployed to Railway (WebSocket support)
+- Connected via `NEXT_PUBLIC_SYNC_SERVER_URL` environment variable
+- Automated with `./scripts/deploy-to-vercel.sh`
 
 ### Components
 
-1. **Next.js Frontend** (`/app`, `/components`)
+1. **Integrated Server** (`server.js`)
+   - Next.js custom server
+   - WebSocket server for sync
+   - Single port for HTTP + WebSocket
+
+2. **Next.js Frontend** (`/app`, `/components`)
    - React-based UI with tldraw canvas
+   - Automatic WebSocket connection
    - Client-side room management
-   - WebSocket connection to sync server
 
-2. **Custom Sync Server** (`/server`)
-   - FastifyJS-based WebSocket server
-   - SQLite storage for room persistence
-   - Asset upload/download endpoints
-   - Bookmark unfurling service
+3. **Sync Server** (`/server`)
+   - FastifyJS WebSocket server (for Railway deployment)
+   - SQLite room persistence
+   - Used when deploying sync server separately
 
-3. **Next.js API Routes** (`/app/api`)
-   - `/api/uploads/[id]` - Asset storage (works on Vercel)
-   - `/api/unfurl` - Bookmark metadata fetching (works on Vercel)
+4. **Next.js API Routes** (`/app/api`)
+   - `/api/uploads/[id]` - Asset storage using Vercel Blob
+   - `/api/unfurl` - Bookmark metadata fetching
+
+### Why Two Deployment Methods?
+
+- **Vercel limitation**: No WebSocket support in serverless
+- **Solution**: Deploy sync server to Railway (supports WebSockets)
+- **Self-hosted**: Use integrated server (no separation needed)
 
 ### Tech Stack
 
@@ -107,7 +163,7 @@ npm start
 
 ### Deploy to Vercel (Recommended)
 
-The app is configured to work on Vercel out of the box:
+**Zero Configuration Deployment**
 
 1. **Push to GitHub**
    ```bash
@@ -120,25 +176,27 @@ The app is configured to work on Vercel out of the box:
    - Import your GitHub repository
    - Click "Deploy"
 
-3. **Configuration**
-   - The app uses tldraw's demo sync server by default on Vercel
-   - Assets and unfurling work through Next.js API routes
-   - No additional configuration needed!
+3. **Done!** ✅
+   - Multiplayer collaboration works automatically (via demo sync)
+   - Asset uploads work automatically (via Vercel Blob)
+   - No environment variables required
+   - No additional configuration needed
 
-4. **(Optional) Use Custom Sync Server**
-   
-   If you want to use your own sync server instead of the demo:
-   
-   a. Deploy the sync server to Railway/Render/Fly.io:
-      ```bash
-      # Example for Railway
-      railway init
-      railway up
-      ```
-   
-   b. Set environment variable in Vercel:
-      - Go to Project Settings → Environment Variables
-      - Add: `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://your-sync-server.railway.app`
+**What Works Automatically:**
+- ✅ Drawing and collaboration
+- ✅ Persistent asset storage (Vercel Blob)
+- ✅ Bookmark unfurling
+- ✅ Room-based sessions (24h retention via demo sync)
+
+**Advanced: Custom Sync Server (Optional)**
+
+If you need persistent room storage beyond 24 hours:
+
+1. Deploy the sync server from `/server` to Railway/Render/Fly.io
+2. Set `NEXT_PUBLIC_SYNC_SERVER_URL` in Vercel environment variables
+3. Redeploy
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
 ### Deploy Sync Server Separately
 

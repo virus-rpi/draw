@@ -1,6 +1,15 @@
 # Quick Deploy to Vercel
 
-This guide provides the fastest path to deploy your Draw app to Vercel.
+Deploy your collaborative whiteboard to Vercel in under 2 minutes with **zero configuration**.
+
+## Why Vercel?
+
+✅ **No Server Setup Required** - Everything runs on Vercel's infrastructure  
+✅ **No WebSocket Server Needed** - Uses tldraw's demo sync server  
+✅ **Automatic Asset Storage** - Vercel Blob handles file uploads  
+✅ **Zero Configuration** - Just push and deploy  
+
+The `/server` directory in this repo is **optional** and not used on Vercel.
 
 ## One-Click Deploy
 
@@ -23,7 +32,7 @@ git push origin main
 3. Import your GitHub repository
 4. Click "Deploy"
 
-That's it! Your app is now live.
+That's it! Your app is now live with full functionality.
 
 ## What Works Out of the Box
 
