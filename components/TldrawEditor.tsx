@@ -1,7 +1,18 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { AssetRecordType, getHashForString, TLAssetStore, TLBookmarkAsset, Tldraw, uniqueId } from 'tldraw'
+import { useEffect, useRef, useState } from 'react'
+import {
+    AssetRecordType,
+    DefaultQuickActions,
+    DefaultQuickActionsContent,
+    getHashForString,
+    TLAssetStore,
+    TLBookmarkAsset,
+    TLComponents,
+    Tldraw,
+    TldrawUiMenuItem,
+    uniqueId,
+} from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 
@@ -16,8 +27,28 @@ function generateUUID(): string {
     })
 }
 
+
+function CustomQuickActions( {writeOwnOnly, onToggle}: { writeOwnOnly: boolean; onToggle: () => void } ) {
+    return (
+        <DefaultQuickActions>
+            <DefaultQuickActionsContent/>
+            <TldrawUiMenuItem
+                id="toggle-edit-own-only"
+                icon={writeOwnOnly ? 'lock' : 'unlock'}
+                onSelect={onToggle}
+            />
+        </DefaultQuickActions>
+    )
+}
+
 export default function TldrawEditor() {
     const [roomId, setRoomId] = useState<string>('')
+    const [writeOwnOnly, setWriteOwnOnly] = useState<boolean>(true)
+    const writeOwnOnlyRef = useRef<boolean>(writeOwnOnly)
+
+    useEffect(() => {
+        writeOwnOnlyRef.current = writeOwnOnly
+    }, [writeOwnOnly])
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
@@ -74,6 +105,15 @@ export default function TldrawEditor() {
         )
     }
 
+    const components: TLComponents = {
+        QuickActions: () => (
+            <CustomQuickActions
+                writeOwnOnly={writeOwnOnly}
+                onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
+            />
+        ),
+    }
+
     return (
         <div style={{
             position: 'fixed',
@@ -85,9 +125,49 @@ export default function TldrawEditor() {
             <Tldraw
                 store={store}
                 deepLinks
+                components={components}
                 onMount={( editor ) => {
                     editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
                     editor.setCurrentTool('draw')
+
+                    editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
+                        console.log('shape created', shape)
+                        console.log('current user id', editor.user.getId())
+                        console.log('writeOwnOnly', writeOwnOnlyRef.current)
+                        return {
+                            ...shape,
+                            meta: {
+                                ...shape.meta,
+                                ownerId: editor.user.getId(),
+                            },
+                        }
+                    })
+
+                    editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
+                        if (writeOwnOnlyRef.current && prev.meta.ownerId !== editor.user.getId()) {
+                            return prev
+                        }
+                        return next
+                    })
+
+                    editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
+                        if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
+                        const shapes = editor.getCurrentPageShapes()
+                        next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
+                            const shape = shapes.find(( s ) => s.id === id)
+                            if (!shape) return false
+                            return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
+                        })
+                        return next
+                    })
+
+                    editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
+                        if (writeOwnOnlyRef.current && shape.meta.ownerId !== editor.user.getId()) {
+                            return false
+                        }
+                        return
+                    })
+
                 }}
             />
         </div>
