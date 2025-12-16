@@ -3,14 +3,17 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Install build dependencies for better-sqlite3
+RUN apk add --no-cache python3 make g++
+
+# Copy server package files
+COPY server/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm install --production
 
 # Copy server files
-COPY server ./server
+COPY server/*.ts ./
 
 # Create directories for data persistence
 RUN mkdir -p .rooms .assets
@@ -19,4 +22,4 @@ RUN mkdir -p .rooms .assets
 EXPOSE 5858
 
 # Start sync server
-CMD ["npx", "tsx", "./server/server.ts"]
+CMD ["npx", "tsx", "./server.ts"]

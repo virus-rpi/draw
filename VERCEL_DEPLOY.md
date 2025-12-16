@@ -1,152 +1,126 @@
-# Quick Deploy to Vercel
+# Deploy to Vercel with Raspberry Pi Backend
 
-Deploy your collaborative whiteboard to Vercel in under 2 minutes with **zero configuration**.
+Deploy your collaborative whiteboard frontend to Vercel and sync server to your Raspberry Pi.
 
-## Why Vercel?
+## Architecture
 
-✅ **No Server Setup Required** - Everything runs on Vercel's infrastructure  
-✅ **No WebSocket Server Needed** - Uses tldraw's demo sync server  
-✅ **Automatic Asset Storage** - Vercel Blob handles file uploads  
-✅ **Zero Configuration** - Just push and deploy  
-
-The `/server` directory in this repo is **optional** and not used on Vercel.
-
-## One-Click Deploy
-
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/virus-rpi/draw)
-
-Click the button above to deploy directly to Vercel.
-
-## Manual Deploy
-
-### Step 1: Push to GitHub
-
-```bash
-git push origin main
+```
+┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│   Vercel    │ ◄─────► │ Cloudflare Tunnel│ ◄─────► │  Raspberry Pi   │
+│  (Frontend) │  HTTPS  │  (Public URL)    │   LAN   │  (Sync Server)  │
+└─────────────┘         └──────────────────┘         └─────────────────┘
 ```
 
-### Step 2: Import to Vercel
+## Why This Setup?
 
-1. Go to [vercel.com](https://vercel.com)
-2. Click "Add New..." → "Project"
-3. Import your GitHub repository
-4. Click "Deploy"
+✅ **Cost-Effective** - ~$2-5/month (just Pi power)
+✅ **Full Control** - Your data on your hardware  
+✅ **No Port Forwarding** - Cloudflare Tunnel handles access
+✅ **Free Frontend Hosting** - Vercel hobby plan
+✅ **Automatic HTTPS** - Built into Cloudflare Tunnel
 
-That's it! Your app is now live with full functionality.
+## Quick Start
 
-## What Works Out of the Box
+### Step 1: Deploy Sync Server to Raspberry Pi
 
-✅ **Drawing & Collaboration** - Full tldraw functionality  
-✅ **Multiplayer Sync** - Real-time collaboration via tldraw demo server  
-✅ **Persistent Asset Storage** - Images and files stored in Vercel Blob  
-✅ **Bookmark Previews** - Automatic URL unfurling  
-✅ **Automatic SSL** - HTTPS enabled by default  
-✅ **Global CDN** - Fast loading worldwide  
+**See [RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md) for detailed instructions.**
 
-## Important Notes
-
-### Data Persistence
-
-⚠️ **Default Behavior**: The app uses tldraw's demo sync server, which:
-- Stores room data temporarily (deleted after ~24 hours)
-- Is shared publicly with all tldraw demo users
-- Is perfect for testing and demos
-- Not recommended for production use with sensitive data
-
-### Asset Storage
-
-✅ **Vercel Blob Storage**: Assets (images, files) are stored persistently using Vercel Blob Storage:
-- Files are stored permanently
-- Fast CDN delivery
-- Automatic in production
-- Requires Vercel Blob to be enabled (see setup below)
-
-## Setting Up Vercel Blob Storage
-
-Vercel Blob is automatically available on Vercel deployments. To enable it:
-
-1. **Deploy to Vercel** - Blob storage is provisioned automatically
-2. **Environment Variables** - Vercel sets `BLOB_READ_WRITE_TOKEN` automatically
-3. **That's it!** - No additional configuration needed
-
-For local development, create a `.env.local` file:
+Quick version:
 ```bash
-BLOB_READ_WRITE_TOKEN=your_token_from_vercel
+# On your Raspberry Pi
+git clone https://github.com/virus-rpi/draw.git
+cd draw
+docker-compose up -d
+
+# Set up Cloudflare Tunnel
+cloudflared tunnel create draw-sync
+cloudflared tunnel route dns draw-sync draw-sync.yourdomain.com
+sudo cloudflared service install
 ```
 
-Get the token from: Vercel Dashboard → Your Project → Storage → Blob → Connect
+### Step 2: Deploy Frontend to Vercel
 
-## Upgrade to Production
-
-For production use with persistent sync data:
-
-### Option 1: Custom Sync Server (Recommended)
-
-Deploy your own sync server for room data persistence:
-
-1. **Deploy Sync Server** (Free on Railway)
-   
+1. **Push to GitHub**
    ```bash
-   # Install Railway CLI
-   npm i -g @railway/cli
-   
-   # Login and deploy
-   railway login
-   railway init
-   railway up
+   git push origin main
    ```
 
-2. **Configure Vercel Environment Variable**
-   
-   In your Vercel project:
-   - Settings → Environment Variables
-   - Add: `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://your-app.railway.app`
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "Add New..." → "Project"
+   - Import your GitHub repository
+
+3. **Add Environment Variable**
+   - Go to Settings → Environment Variables
+   - Add: `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://draw-sync.yourdomain.com`
    - Redeploy
 
+4. **Done!** Your app is live.
+
+## What You Get
+
+✅ **Drawing & Collaboration** - Full tldraw functionality  
+✅ **Real-time Multiplayer** - Your own sync server on Raspberry Pi
+✅ **Persistent Asset Storage** - Vercel Blob for images/files  
+✅ **Persistent Room Data** - SQLite on your Raspberry Pi
+✅ **Bookmark Previews** - Automatic URL unfurling  
+✅ **Automatic HTTPS** - Via Cloudflare Tunnel
+✅ **Global CDN** - Fast frontend loading via Vercel
+
+## Vercel Blob Storage
+
+Vercel Blob is automatically provisioned when you deploy to Vercel:
+
+1. **Automatic Setup** - No configuration needed
+2. **Environment Variable** - `BLOB_READ_WRITE_TOKEN` is auto-set by Vercel
+3. **For Local Dev** - Get token from: Vercel Dashboard → Storage → Blob → Connect
+
+Create `.env.local`:
+```bash
+BLOB_READ_WRITE_TOKEN=your_token_from_vercel
+NEXT_PUBLIC_SYNC_SERVER_URL=https://draw-sync.yourdomain.com
+```
 
 
-## Custom Domain
-
-After deployment, add your custom domain:
-
-1. Go to your project in Vercel
-2. Settings → Domains
-3. Add your domain
-4. Update DNS records as shown
 
 ## Environment Variables
 
-| Variable | Purpose | Required | Default |
-|----------|---------|----------|---------|
-| `NEXT_PUBLIC_SYNC_SERVER_URL` | Custom sync server URL | No | tldraw demo server |
+Set in Vercel project settings:
+
+| Variable | Value | Required |
+|----------|-------|----------|
+| `NEXT_PUBLIC_SYNC_SERVER_URL` | `https://draw-sync.yourdomain.com` | Yes |
+| `BLOB_READ_WRITE_TOKEN` | Auto-set by Vercel | Auto |
 
 ## Troubleshooting
 
-### Build Fails
+### Multiplayer Not Working
 
-Check that:
-- Node.js version is 18+ in Vercel settings
-- All dependencies are listed in `package.json`
-
-### App Loads but Drawing Doesn't Work
-
-Check browser console for errors. Most commonly:
-- CORS issues (if using custom sync server)
-- WebSocket connection blocked
+1. Check Raspberry Pi: `docker-compose ps`
+2. Check Cloudflare Tunnel: `sudo systemctl status cloudflared`
+3. Test connectivity: `curl https://draw-sync.yourdomain.com`
+4. Verify Vercel env var is set correctly
 
 ### Assets Don't Upload
 
-Check:
-- File size limits (Vercel has 4.5MB body limit)
-- Browser console for specific errors
+1. Ensure Vercel Blob is enabled (automatic on deploy)
+2. Check Vercel logs for errors
+3. File size limit: 4.5MB per file
 
-## Need Help?
+### Build Fails on Vercel
 
-- Check [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment guide
-- Open an issue on [GitHub](https://github.com/virus-rpi/draw/issues)
-- Review [tldraw documentation](https://tldraw.dev)
+- Node.js 18+ is required (set in Vercel project settings)
+- Check build logs for specific errors
 
 ## Cost Estimate
 
-- **Hobby**: Free (Vercel free tier + tldraw demo sync)
-- **Production**: $5-20/month (Vercel Pro + Railway/Render sync server)
+- **Vercel**: Free (hobby plan)
+- **Raspberry Pi**: ~$2-5/month (electricity)
+- **Cloudflare Tunnel**: Free
+- **Total**: ~$2-5/month
+
+## Need Help?
+
+- Detailed Pi setup: [RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md)
+- Issues: [GitHub](https://github.com/virus-rpi/draw/issues)
+- tldraw docs: [tldraw.dev](https://tldraw.dev)
