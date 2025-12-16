@@ -2,8 +2,13 @@
 
 # dependencies
 /node_modules
+/server/node_modules
 /.pnp
 .pnp.js
+
+# package locks
+package-lock.json
+/server/package-lock.json
 
 # testing
 /coverage
@@ -37,3 +42,4 @@ next-env.d.ts
 # sync server data
 /.rooms
 /.assets
+/data
