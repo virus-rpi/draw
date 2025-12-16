@@ -11,7 +11,7 @@ Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docke
 - 🎯 **Minimalist UI** - Clean, modern interface that gets out of your way
 - 🔗 **Easy sharing** - Each session gets a unique room ID in the URL
 - ⚡ **Fast & responsive** - Built with Next.js and React
-- 💾 **Persistent storage** - Vercel Blob for assets, SQLite for rooms
+- 💾 **Persistent storage** - Room data and assets on your Raspberry Pi
 - 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
 - 🏠 **Self-hosted backend** - Your data on your hardware
 
@@ -45,20 +45,19 @@ Open [http://localhost:3000](http://localhost:3000)
 1. Deploy the sync server to your Raspberry Pi first (see Production below)
 2. Or temporarily use a placeholder URL (multiplayer won't work without a real server)
 
-**Enable Asset Uploads Locally**
+**Configure Raspberry Pi Backend**
 
 1. Create `.env.local`:
    ```bash
    cp .env.example .env.local
    ```
 
-2. Get Vercel Blob token:
-   - Create a Vercel project
-   - Go to: Dashboard → Storage → Blob → Connect
-   - Copy `BLOB_READ_WRITE_TOKEN`
-   - Add to `.env.local`
-
-3. Add your Raspberry Pi sync server URL:
+2. Add your Raspberry Pi sync server URL:
+   ```bash
+   NEXT_PUBLIC_SYNC_SERVER_URL=http://localhost:5858
+   ```
+   
+   Or for production:
    ```bash
    NEXT_PUBLIC_SYNC_SERVER_URL=https://draw-sync.yourdomain.com
    ```
@@ -130,8 +129,8 @@ sudo cloudflared service install
 
 3. **Next.js API Routes** (`/app/api`)
    - Deployed to Vercel
-   - `/api/uploads/[id]` - Asset storage using Vercel Blob
-   - `/api/unfurl` - Bookmark metadata fetching
+   - `/api/uploads/[id]` - Proxies asset requests to Raspberry Pi
+   - `/api/unfurl` - Proxies unfurl requests to Raspberry Pi
 
 ### Tech Stack
 
@@ -157,13 +156,12 @@ sudo cloudflared service install
 | Variable | Description | Required |
 |----------|-------------|----------|
 | `NEXT_PUBLIC_SYNC_SERVER_URL` | Your Raspberry Pi sync server URL (via Cloudflare Tunnel) | Yes |
-| `BLOB_READ_WRITE_TOKEN` | Vercel Blob storage token (auto-set on Vercel) | For local dev |
 
 ## Data Persistence
 
-- **Room Data**: SQLite on your Raspberry Pi (permanent)
-- **Assets**: Vercel Blob Storage (permanent, CDN-delivered)
-- **Your Control**: All data on your infrastructure
+- **Room Data**: JSON snapshots on your Raspberry Pi (permanent)
+- **Assets**: Filesystem on your Raspberry Pi (permanent)
+- **Your Control**: 100% of data on your infrastructure
 
 ## Security
 

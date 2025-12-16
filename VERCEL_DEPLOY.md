@@ -61,23 +61,23 @@ sudo cloudflared service install
 
 ✅ **Drawing & Collaboration** - Full tldraw functionality  
 ✅ **Real-time Multiplayer** - Your own sync server on Raspberry Pi
-✅ **Persistent Asset Storage** - Vercel Blob for images/files  
-✅ **Persistent Room Data** - SQLite on your Raspberry Pi
+✅ **Persistent Asset Storage** - Files stored on your Raspberry Pi
+✅ **Persistent Room Data** - JSON snapshots on your Raspberry Pi
 ✅ **Bookmark Previews** - Automatic URL unfurling  
 ✅ **Automatic HTTPS** - Via Cloudflare Tunnel
-✅ **Global CDN** - Fast frontend loading via Vercel
+✅ **Fast Frontend** - Hosted on Vercel's global CDN
 
-## Vercel Blob Storage
+## Configuration
 
-Vercel Blob is automatically provisioned when you deploy to Vercel:
+All backend functionality runs on your Raspberry Pi. The Vercel frontend simply proxies API requests to your Pi.
 
-1. **Automatic Setup** - No configuration needed
-2. **Environment Variable** - `BLOB_READ_WRITE_TOKEN` is auto-set by Vercel
-3. **For Local Dev** - Get token from: Vercel Dashboard → Storage → Blob → Connect
-
-Create `.env.local`:
+Create `.env.local` for local development:
 ```bash
-BLOB_READ_WRITE_TOKEN=your_token_from_vercel
+NEXT_PUBLIC_SYNC_SERVER_URL=http://localhost:5858
+```
+
+For production, set in Vercel:
+```bash
 NEXT_PUBLIC_SYNC_SERVER_URL=https://draw-sync.yourdomain.com
 ```
 
@@ -90,7 +90,6 @@ Set in Vercel project settings:
 | Variable | Value | Required |
 |----------|-------|----------|
 | `NEXT_PUBLIC_SYNC_SERVER_URL` | `https://draw-sync.yourdomain.com` | Yes |
-| `BLOB_READ_WRITE_TOKEN` | Auto-set by Vercel | Auto |
 
 ## Troubleshooting
 
@@ -103,9 +102,9 @@ Set in Vercel project settings:
 
 ### Assets Don't Upload
 
-1. Ensure Vercel Blob is enabled (automatic on deploy)
-2. Check Vercel logs for errors
-3. File size limit: 4.5MB per file
+1. Check Raspberry Pi is running: `docker-compose ps`
+2. Verify sync server URL is correct in Vercel env vars
+3. Check Raspberry Pi logs: `docker-compose logs -f`
 
 ### Build Fails on Vercel
 
