@@ -22,7 +22,6 @@ import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 import { useColorLock } from './useColorLock'
 import { ColorLockDialog } from './ColorLockDialog'
-import { CustomColorPicker } from './CustomColorPicker'
 
 function generateUUID(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -39,13 +38,11 @@ function generateUUID(): string {
 function CustomQuickActions( {
     writeOwnOnly, 
     onToggle,
-    onColorLock,
-    onCustomColor
+    onColorLock
 }: { 
     writeOwnOnly: boolean
     onToggle: () => void
     onColorLock: () => void
-    onCustomColor: () => void
 } ) {
     return (
         <DefaultQuickActions>
@@ -60,12 +57,6 @@ function CustomQuickActions( {
                 icon="color"
                 onSelect={onColorLock}
                 label="Lock/Unlock Color"
-            />
-            <TldrawUiMenuItem
-                id="custom-color"
-                icon="color"
-                onSelect={onCustomColor}
-                label="Custom Color"
             />
         </DefaultQuickActions>
     )
@@ -113,7 +104,6 @@ export default function TldrawEditor() {
     const [showColorLockDialog, setShowColorLockDialog] = useState(false)
     const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
     const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
-    const [showCustomColorPicker, setShowCustomColorPicker] = useState(false)
     const editorRef = useRef<Editor | null>(null)
 
     const colorLock = useColorLock(roomId, userId)
@@ -218,40 +208,6 @@ export default function TldrawEditor() {
         }
     }
 
-    const handleCustomColorSelect = (color: string) => {
-        const editor = editorRef.current
-        if (!editor) return
-
-        // Check if the custom color is locked
-        if (!canUseColor(color)) {
-            alert('This color is locked by another user')
-            return
-        }
-
-        try {
-            // Update selected shapes if any
-            const selectedShapes = editor.getSelectedShapes()
-            if (selectedShapes.length > 0) {
-                editor.updateShapes(
-                    selectedShapes.map((shape) => ({
-                        id: shape.id,
-                        type: shape.type,
-                        props: {
-                            ...(shape as any).props,
-                            color: color,
-                        },
-                    }))
-                )
-                alert(`Applied custom color ${color} to selected shapes`)
-            } else {
-                alert('Please select one or more shapes first to apply the custom color')
-            }
-        } catch (error) {
-            console.error('Failed to set custom color:', error)
-            alert('Failed to apply custom color')
-        }
-    }
-
     const store = useSync({
         uri: getSyncUrl(),
         assets: multiplayerAssets,
@@ -276,7 +232,6 @@ export default function TldrawEditor() {
                 writeOwnOnly={writeOwnOnly}
                 onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
                 onColorLock={handleColorLockClick}
-                onCustomColor={() => setShowCustomColorPicker(true)}
             />
         ),
         StylePanel: () => (
@@ -396,12 +351,6 @@ export default function TldrawEditor() {
                     isLocking={colorLockMode === 'lock'}
                     onConfirm={handleColorLockConfirm}
                     onCancel={() => setShowColorLockDialog(false)}
-                />
-            )}
-            {showCustomColorPicker && (
-                <CustomColorPicker
-                    onColorSelect={handleCustomColorSelect}
-                    onClose={() => setShowCustomColorPicker(false)}
                 />
             )}
         </>

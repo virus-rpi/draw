@@ -22,3 +22,14 @@ body {
     -webkit-user-select: auto;
     user-select: auto;
 }
+
+/* Override tldraw red color with #ec2d44 */
+.tl-theme__light {
+    --color-red: #ec2d44;
+    --palette-red: #ec2d44;
+}
+
+.tl-theme__dark {
+    --color-red: #ec2d44;
+    --palette-red: #ec2d44;
+}
