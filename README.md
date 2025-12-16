@@ -2,13 +2,18 @@
 
 A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.com).
 
+Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docker.
+
 ## Features
 
 - 🎨 **Full-featured drawing tools** - Pen, shapes, text, images, and more
-- 👥 **Multiplayer ready** - Built with tldraw sync for real-time collaboration
+- 👥 **Real-time multiplayer** - WebSocket sync server on your Raspberry Pi
 - 🎯 **Minimalist UI** - Clean, modern interface that gets out of your way
 - 🔗 **Easy sharing** - Each session gets a unique room ID in the URL
 - ⚡ **Fast & responsive** - Built with Next.js and React
+- 💾 **Persistent storage** - Room data and assets on your Raspberry Pi
+- 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
+- 🏠 **Self-hosted backend** - Your data on your hardware
 
 ## Getting Started
 
@@ -22,60 +27,148 @@ A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.c
 ```bash
 # Install dependencies
 npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser.
+### Local Development
 
-### Usage
+```bash
+# Install dependencies
+npm install
 
-1. Open the app - a unique room ID will be generated automatically
-2. Share the URL with others to collaborate in real-time
-3. Start drawing!
+# Start Next.js development server
+npm run dev
+```
 
-Each room persists for the duration of the session. To join an existing room, simply use the same URL with the room parameter.
+Open [http://localhost:3000](http://localhost:3000)
 
-## Tech Stack
+**Note**: For local development, the app will need a sync server URL. You can either:
+1. Deploy the sync server to your Raspberry Pi first (see Production below)
+2. Or temporarily use a placeholder URL (multiplayer won't work without a real server)
 
-- **Next.js 14** - React framework with App Router
-- **tldraw** - Infinite canvas whiteboard
-- **TypeScript** - Type-safe development
-- **Tailwind CSS** - Utility-first styling
+**Configure Raspberry Pi Backend**
 
-## Deployment
+1. Create `.env.local`:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-This app can be deployed to any platform that supports Next.js:
+2. Add your Raspberry Pi sync server URL:
+   ```bash
+   NEXT_PUBLIC_SYNC_SERVER_URL=http://localhost:5858
+   ```
+   
+   Or for production:
+   ```bash
+   NEXT_PUBLIC_SYNC_SERVER_URL=https://draw-sync.yourdomain.com
+   ```
 
-- **Vercel** (recommended) - Zero configuration deployment
-- **Netlify** - Automatic builds and deployments
-- **Railway** - Simple container-based hosting
-- **Self-hosted** - Docker or Node.js server
+### Production Deployment
 
-### Environment Considerations
+**Step 1: Deploy Sync Server to Raspberry Pi**
 
-The application uses tldraw's demo sync server for real-time collaboration. For production use, consider:
-- Setting up your own sync server using [@tldraw/sync](https://www.npmjs.com/package/@tldraw/sync)
-- Or deploying with PartyKit for serverless real-time sync
+On your Raspberry Pi:
+```bash
+git clone https://github.com/virus-rpi/draw.git
+cd draw
+docker-compose up -d
+```
 
-## Known Issues
+Set up Cloudflare Tunnel:
+```bash
+cloudflared tunnel create draw-sync
+cloudflared tunnel route dns draw-sync draw-sync.yourdomain.com
+sudo cloudflared service install
+```
 
-- Some dev dependencies (eslint-config-next) have vulnerability warnings. These only affect development and don't impact production security.
-- The tldraw library (v2.4.x) has some transitive dependencies with moderate vulnerabilities. Consider upgrading to tldraw v4 when it becomes stable.
+**See [RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md) for detailed instructions**
+
+**Step 2: Deploy Frontend to Vercel**
+
+1. Push to GitHub:
+   ```bash
+   git push origin main
+   ```
+
+2. Import to Vercel:
+   - Go to [vercel.com](https://vercel.com)
+   - Import your GitHub repository
+   - Add environment variable: `NEXT_PUBLIC_SYNC_SERVER_URL=https://draw-sync.yourdomain.com`
+   - Deploy
+
+**See [VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md) for detailed instructions**
+
+**Why This Setup?**
+- ✅ Your own hardware - full control
+- ✅ No port forwarding needed
+- ✅ Free Cloudflare tunnel
+- ✅ Automatic HTTPS
+- ✅ Data stays on your infrastructure
+- ✅ Cost: ~$2-5/month (just Pi electricity)
+
+## Architecture
+
+```
+┌─────────────┐         ┌──────────────────┐         ┌─────────────────┐
+│   Vercel    │ ◄─────► │ Cloudflare Tunnel│ ◄─────► │  Raspberry Pi   │
+│  (Frontend) │  HTTPS  │  (Public URL)    │   LAN   │  (Sync Server)  │
+└─────────────┘         └──────────────────┘         └─────────────────┘
+```
+
+### Components
+
+1. **Next.js Frontend** (`/app`, `/components`)
+   - Deployed to Vercel
+   - React-based UI with tldraw canvas
+   - Connects to Raspberry Pi sync server
+
+2. **Sync Server** (`/server`)
+   - Deployed to Raspberry Pi via Docker
+   - FastifyJS WebSocket server
+   - SQLite room persistence
+   - Exposed via Cloudflare Tunnel
+
+3. **Next.js API Routes** (`/app/api`)
+   - Deployed to Vercel
+   - `/api/uploads/[id]` - Proxies asset requests to Raspberry Pi
+   - `/api/unfurl` - Proxies unfurl requests to Raspberry Pi
+
+### Tech Stack
+
+**Frontend (Vercel)**
+- Next.js 16 - React framework
+- tldraw 4.2 - Canvas whiteboard
+- TypeScript - Type safety
+- Tailwind CSS - Styling
+
+**Backend (Raspberry Pi)**
+- Fastify - Web server
+- SQLite - Room data storage
+- Docker - Containerization
+- Cloudflare Tunnel - Secure access
+
+## Documentation
+
+- **[RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md)** - Complete guide for deploying sync server to Raspberry Pi
+- **[VERCEL_DEPLOY.md](./VERCEL_DEPLOY.md)** - Guide for deploying frontend to Vercel
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `NEXT_PUBLIC_SYNC_SERVER_URL` | Your Raspberry Pi sync server URL (via Cloudflare Tunnel) | Yes |
+
+## Data Persistence
+
+- **Room Data**: JSON snapshots on your Raspberry Pi (permanent)
+- **Assets**: Filesystem on your Raspberry Pi (permanent)
+- **Your Control**: 100% of data on your infrastructure
 
 ## Security
 
-- Room IDs are generated using `crypto.randomUUID()` for cryptographic security
-- No authentication is required - rooms are accessible to anyone with the URL
-- Data is not persisted beyond the session
-- For production use with data persistence, implement proper authentication and authorization
+- Room IDs generated using `crypto.randomUUID()`
+- No authentication required - rooms accessible via URL
+- Cloudflare Tunnel provides DDoS protection
+- For production, consider adding authentication
 
 ## License
 
