@@ -23,6 +23,7 @@ import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 import { useColorLock } from './useColorLock'
 import { ColorLockDialog } from './ColorLockDialog'
+import { CustomAlert } from './CustomAlert'
 
 // Replace the default red color with #ec2d44
 DefaultColorThemePalette.lightMode.red.solid = '#ec2d44'
@@ -116,6 +117,8 @@ export default function TldrawEditor() {
     const [showColorLockDialog, setShowColorLockDialog] = useState(false)
     const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
     const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
+    const [alertMessage, setAlertMessage] = useState<string | null>(null)
+    const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info')
     const editorRef = useRef<Editor | null>(null)
 
     const colorLock = useColorLock(roomId, userId)
@@ -214,10 +217,12 @@ export default function TldrawEditor() {
         }
         
         if (result.success) {
-            alert(result.message)
+            setAlertType('success')
+            setAlertMessage(result.message)
             setShowColorLockDialog(false)
         } else {
-            alert(`Error: ${result.message}`)
+            setAlertType('error')
+            setAlertMessage(`Error: ${result.message}`)
         }
     }
 
@@ -351,9 +356,10 @@ export default function TldrawEditor() {
                                 const newColor = nextStyles.color
                                 if (!canUseColor(newColor)) {
                                     console.log('Locked color selected, reverting to previous color')
-                                    // Show an alert to inform the user
+                                    // Show a custom alert to inform the user
                                     setTimeout(() => {
-                                        alert(`The color "${newColor}" is locked by another user. Click Lock/Unlock Color to take it over with the password.`)
+                                        setAlertType('info')
+                                        setAlertMessage(`The color "${newColor}" is locked by another user. Click Lock/Unlock Color to take it over with the password.`)
                                     }, 0)
                                     return prev
                                 }
@@ -387,6 +393,13 @@ export default function TldrawEditor() {
                     onConfirm={handleColorLockConfirm}
                     onCancel={() => setShowColorLockDialog(false)}
                     lockedColors={lockedColors}
+                />
+            )}
+            {alertMessage && (
+                <CustomAlert
+                    message={alertMessage}
+                    type={alertType}
+                    onClose={() => setAlertMessage(null)}
                 />
             )}
         </>
