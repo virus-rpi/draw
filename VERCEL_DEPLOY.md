@@ -29,7 +29,7 @@ That's it! Your app is now live.
 
 ✅ **Drawing & Collaboration** - Full tldraw functionality  
 ✅ **Multiplayer Sync** - Real-time collaboration via tldraw demo server  
-✅ **Asset Uploads** - Images and files via Next.js API routes  
+✅ **Persistent Asset Storage** - Images and files stored in Vercel Blob  
 ✅ **Bookmark Previews** - Automatic URL unfurling  
 ✅ **Automatic SSL** - HTTPS enabled by default  
 ✅ **Global CDN** - Fast loading worldwide  
@@ -46,18 +46,34 @@ That's it! Your app is now live.
 
 ### Asset Storage
 
-⚠️ **Default Behavior**: Assets are stored in Vercel's ephemeral filesystem, which means:
-- Files are temporarily stored during a request
-- Not persistent across deployments
-- Suitable for testing
+✅ **Vercel Blob Storage**: Assets (images, files) are stored persistently using Vercel Blob Storage:
+- Files are stored permanently
+- Fast CDN delivery
+- Automatic in production
+- Requires Vercel Blob to be enabled (see setup below)
+
+## Setting Up Vercel Blob Storage
+
+Vercel Blob is automatically available on Vercel deployments. To enable it:
+
+1. **Deploy to Vercel** - Blob storage is provisioned automatically
+2. **Environment Variables** - Vercel sets `BLOB_READ_WRITE_TOKEN` automatically
+3. **That's it!** - No additional configuration needed
+
+For local development, create a `.env.local` file:
+```bash
+BLOB_READ_WRITE_TOKEN=your_token_from_vercel
+```
+
+Get the token from: Vercel Dashboard → Your Project → Storage → Blob → Connect
 
 ## Upgrade to Production
 
-For production use with persistent storage:
+For production use with persistent sync data:
 
 ### Option 1: Custom Sync Server (Recommended)
 
-Deploy your own sync server for data persistence:
+Deploy your own sync server for room data persistence:
 
 1. **Deploy Sync Server** (Free on Railway)
    
@@ -78,22 +94,7 @@ Deploy your own sync server for data persistence:
    - Add: `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://your-app.railway.app`
    - Redeploy
 
-### Option 2: Vercel Blob Storage
 
-Use Vercel's blob storage for persistent assets:
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Create blob storage
-vercel link
-vercel blob create production
-```
-
-Then update `/app/api/uploads/[id]/route.ts` to use Vercel Blob.
-
-See [Vercel Blob Docs](https://vercel.com/docs/storage/vercel-blob)
 
 ## Custom Domain
 

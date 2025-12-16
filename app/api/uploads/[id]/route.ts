@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { mkdir, readFile, writeFile } from 'fs/promises'
-import { join, resolve } from 'path'
-
-// We are just using the filesystem to store assets
-// In production, you should use a proper storage service like Vercel Blob
-const DIR = resolve('./.assets')
+import { put, head } from '@vercel/blob'
 
 // Sanitize asset ID to prevent path traversal attacks
 function sanitizeAssetId(id: string): string {
@@ -18,15 +13,21 @@ export async function PUT(
     try {
         const { id: rawId } = await params
         const id = sanitizeAssetId(rawId)
-        await mkdir(DIR, { recursive: true })
         
         // Get the raw body as ArrayBuffer
         const arrayBuffer = await request.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
         
-        await writeFile(join(DIR, id), buffer)
+        // Upload to Vercel Blob with public access
+        const blob = await put(id, buffer, {
+            access: 'public',
+            addRandomSuffix: false, // Use exact filename
+        })
         
-        return NextResponse.json({ ok: true })
+        return NextResponse.json({ 
+            ok: true,
+            url: blob.url 
+        })
     } catch (error) {
         console.error('Error storing asset:', error)
         return NextResponse.json(
@@ -43,13 +44,19 @@ export async function GET(
     try {
         const { id: rawId } = await params
         const id = sanitizeAssetId(rawId)
-        const data = await readFile(join(DIR, id))
         
-        return new NextResponse(data, {
-            headers: {
-                'Content-Type': 'application/octet-stream',
-            },
-        })
+        // Check if blob exists
+        const blobInfo = await head(`https://blob.vercel-storage.com/${id}`)
+        
+        if (!blobInfo) {
+            return NextResponse.json(
+                { error: 'Asset not found' },
+                { status: 404 }
+            )
+        }
+        
+        // Redirect to the Vercel Blob URL for direct access
+        return NextResponse.redirect(blobInfo.url)
     } catch (error) {
         console.error('Error loading asset:', error)
         return NextResponse.json(

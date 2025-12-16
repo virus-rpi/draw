@@ -28,6 +28,21 @@ npm install
 
 ### Development
 
+**Local Development Setup**
+
+For asset uploads to work locally, you need a Vercel Blob token:
+
+1. Create a `.env.local` file:
+   ```bash
+   cp .env.example .env.local
+   ```
+
+2. Get your Vercel Blob token:
+   - Deploy to Vercel first (or create a project)
+   - Go to: Vercel Dashboard → Your Project → Storage → Blob
+   - Copy the `BLOB_READ_WRITE_TOKEN`
+   - Add it to `.env.local`
+
 **Option 1: With Custom Sync Server (Local Development)**
 
 Run both the sync server and Next.js client:
@@ -174,11 +189,15 @@ Or use Docker:
 
 ## Data Persistence
 
-- **Rooms**: Stored in SQLite databases in `./.rooms` directory
-- **Assets**: Stored in filesystem in `./.assets` directory
-- **Note**: On Vercel, data is ephemeral. For production, use:
-  - [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) for assets
-  - External sync server (Railway, Render) for rooms
+- **Rooms**: 
+  - Local dev: Stored in SQLite databases in `./.rooms` directory
+  - Vercel: Uses tldraw demo sync server (temporary, 24h retention)
+  - Production: Deploy custom sync server to Railway/Render
+  
+- **Assets**: 
+  - **Vercel Blob Storage** - Persistent storage using [@vercel/blob](https://vercel.com/docs/storage/vercel-blob)
+  - Automatically enabled on Vercel deployments
+  - For local dev, set `BLOB_READ_WRITE_TOKEN` in `.env.local`
 
 ## Known Issues
 

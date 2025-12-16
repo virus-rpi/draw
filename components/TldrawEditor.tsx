@@ -89,9 +89,9 @@ export default function TldrawEditor() {
 
 // How does our server handle assets like images and videos?
 const multiplayerAssets: TLAssetStore = {
-    // to upload an asset, we prefix it with a unique id, POST it to our worker, and return the URL
+    // to upload an asset, we prefix it with a unique id, upload to Vercel Blob, and return the URL
     async upload(_asset, file) {
-        // Use Next.js API route for assets (works on Vercel)
+        // Use Next.js API route for assets (uploads to Vercel Blob)
         const id = uniqueId()
         const objectName = `${id}-${file.name}`
         const url = `/api/uploads/${encodeURIComponent(objectName)}`
@@ -105,7 +105,9 @@ const multiplayerAssets: TLAssetStore = {
             throw new Error(`Failed to upload asset: ${response.statusText}`)
         }
 
-        return { src: url }
+        // Get the blob URL from the response
+        const data = await response.json()
+        return { src: data.url || url }
     },
     // to retrieve an asset, we can just use the same URL. you could customize this to add extra
     // auth, or to serve optimized versions / sizes of the asset.
