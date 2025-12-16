@@ -87,7 +87,7 @@ export function useColorLock(roomId: string, userId: string) {
                 wsRef.current = null
             }
         }
-    }, [roomId, userId, fetchLockedColors])
+    }, [roomId, userId]) // Removed fetchLockedColors from dependencies
 
     const lockColor = useCallback(async (color: string, password: string): Promise<ColorLockResult> => {
         try {

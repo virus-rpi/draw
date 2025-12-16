@@ -130,17 +130,32 @@ app.register(async ( app ) => {
         console.log(`Color lock WebSocket connection to room ${roomId}`)
         
         // Send initial state
-        const locks = getAllLockedColors(roomId)
-        socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
-        
-        // Keep connection alive and send updates when color locks change
-        const interval = setInterval(() => {
+        try {
             const locks = getAllLockedColors(roomId)
             socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+        } catch (error) {
+            console.error('Failed to send initial color lock state:', error)
+        }
+        
+        // Keep connection alive and send updates periodically
+        // Note: In a production system, this should only send when locks change
+        const interval = setInterval(() => {
+            try {
+                const locks = getAllLockedColors(roomId)
+                socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+            } catch (error) {
+                // Socket likely closed, stop the interval
+                clearInterval(interval)
+            }
         }, 1000)
         
         socket.on('close', () => {
             console.log(`Color lock WebSocket disconnected from room ${roomId}`)
+            clearInterval(interval)
+        })
+        
+        socket.on('error', (error) => {
+            console.error(`Color lock WebSocket error for room ${roomId}:`, error)
             clearInterval(interval)
         })
     })

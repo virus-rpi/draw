@@ -179,17 +179,15 @@ export default function TldrawEditor() {
         const editor = editorRef.current
         if (!editor) return
 
-        // Get the current drawing color
-        let currentColor = 'black' // default
+        // Default to black color - user will select the color in the dialog
+        let currentColor = 'black'
         
-        // Try to get the last used color from user preferences
-        try {
-            const userPreferences = editor.user.getUserPreferences()
-            if ((userPreferences as any).colorScheme) {
-                currentColor = (userPreferences as any).colorScheme
-            }
-        } catch (e) {
-            // Fallback to checking selected shapes
+        // Check if user has a locked color already
+        if (myLockedColor) {
+            currentColor = myLockedColor
+            setColorLockMode('unlock')
+        } else {
+            // Try to get color from selected shapes as a hint
             const selectedShapes = editor.getSelectedShapes()
             if (selectedShapes.length > 0) {
                 const firstShape = selectedShapes[0] as any
@@ -197,17 +195,10 @@ export default function TldrawEditor() {
                     currentColor = firstShape.props.color
                 }
             }
+            setColorLockMode('lock')
         }
 
         setSelectedColorForLock(currentColor)
-        
-        // Check if this color is already locked by this user
-        if (myLockedColor === currentColor) {
-            setColorLockMode('unlock')
-        } else {
-            setColorLockMode('lock')
-        }
-        
         setShowColorLockDialog(true)
     }
 
