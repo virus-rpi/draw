@@ -45,7 +45,7 @@ export function lockColor(
         // If locked by someone else, verify password to take over
         if (existingLock.userId !== userId) {
             if (!verifyPassword(password, existingLock.passwordHash)) {
-                return { success: false, message: 'Color is locked by another user. Invalid password for takeover.' }
+                return { success: false, message: 'Incorrect password for taking over this color lock.' }
             }
             tookOver = true
         }

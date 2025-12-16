@@ -6,6 +6,9 @@ interface CustomAlertProps {
     type?: 'info' | 'success' | 'error'
 }
 
+// Z-index for alert overlay
+const Z_INDEX_ALERT = 10001
+
 export function CustomAlert({ message, onClose, type = 'info' }: CustomAlertProps) {
     useEffect(() => {
         // Auto-close after 5 seconds
@@ -14,7 +17,7 @@ export function CustomAlert({ message, onClose, type = 'info' }: CustomAlertProp
         }, 5000)
         
         return () => clearTimeout(timer)
-    }, [onClose])
+    }, []) // Empty dependency array - only run once on mount
 
     const getBackgroundColor = () => {
         switch (type) {
@@ -39,7 +42,7 @@ export function CustomAlert({ message, onClose, type = 'info' }: CustomAlertProp
                 padding: '16px 24px',
                 borderRadius: '8px',
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-                zIndex: 10001,
+                zIndex: Z_INDEX_ALERT,
                 minWidth: '300px',
                 maxWidth: '600px',
                 animation: 'slideDown 0.3s ease-out',

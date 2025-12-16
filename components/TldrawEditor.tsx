@@ -120,6 +120,15 @@ export default function TldrawEditor() {
     const [alertMessage, setAlertMessage] = useState<string | null>(null)
     const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info')
     const editorRef = useRef<Editor | null>(null)
+    const setAlertRef = useRef<((msg: string, type: 'info' | 'success' | 'error') => void) | null>(null)
+
+    // Create a stable reference for setting alerts from side effects
+    useEffect(() => {
+        setAlertRef.current = (msg: string, type: 'info' | 'success' | 'error') => {
+            setAlertType(type)
+            setAlertMessage(msg)
+        }
+    }, [])
 
     const colorLock = useColorLock(roomId, userId)
     const { myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors } = colorLock
@@ -356,11 +365,13 @@ export default function TldrawEditor() {
                                 const newColor = nextStyles.color
                                 if (!canUseColor(newColor)) {
                                     console.log('Locked color selected, reverting to previous color')
-                                    // Show a custom alert to inform the user
-                                    setTimeout(() => {
-                                        setAlertType('info')
-                                        setAlertMessage(`The color "${newColor}" is locked by another user. Click Lock/Unlock Color to take it over with the password.`)
-                                    }, 0)
+                                    // Use ref to avoid React lifecycle issues when called from side effect
+                                    if (setAlertRef.current) {
+                                        setAlertRef.current(
+                                            `The color "${newColor}" is locked by another user. Click Lock/Unlock Color to take it over with the password.`,
+                                            'info'
+                                        )
+                                    }
                                     return prev
                                 }
                             }
