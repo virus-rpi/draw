@@ -17,11 +17,16 @@ import {
     DefaultStylePanelContent,
     useEditor,
     useValue,
+    DefaultColorThemePalette,
 } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 import { useColorLock } from './useColorLock'
 import { ColorLockDialog } from './ColorLockDialog'
+
+// Replace the default red color with #ec2d44
+DefaultColorThemePalette.lightMode.red.solid = '#ec2d44'
+DefaultColorThemePalette.darkMode.red.solid = '#ec2d44'
 
 function generateUUID(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
