@@ -75,7 +75,13 @@ export default function TldrawEditor() {
     }
 
     return (
-        <div style={{position: 'fixed', inset: 0}}>
+        <div style={{
+            position: 'fixed',
+            inset: 0,
+            touchAction: 'none',
+            overflow: 'hidden',
+            WebkitOverflowScrolling: 'auto',
+        }}>
             <Tldraw
                 store={store}
                 deepLinks
