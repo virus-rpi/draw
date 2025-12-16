@@ -291,9 +291,8 @@ export default function TldrawEditor() {
 
                     editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( _prev, next ) => {
                         if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
-                        const shapes = editor.getCurrentPageShapes()
                         next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
-                            const shape = shapes.find(( s ) => s.id === id)
+                            const shape = editor.getShape(id)
                             if (!shape) return false
                             return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
                         })
