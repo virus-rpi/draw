@@ -16,6 +16,7 @@ app.register(async ( app ) => {
     app.get('/connect/:roomId', {websocket: true}, async ( socket, req ) => {
         const roomId = (req.params as any).roomId as string
         const sessionId = (req.query as any)?.['sessionId'] as string
+        console.log(`New connection to room ${roomId} with sessionId ${sessionId}`)
 
         const caughtMessages: RawData[] = []
         const MAX_CAUGHT_MESSAGES = 100
@@ -55,9 +56,17 @@ app.register(async ( app ) => {
         const url = (req.query as any).url as string
         res.send(await unfurl(url))
     })
+
+    app.get('/health', async ( req, res ) => {
+        return {
+            status: 'ok',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+        }
+    })
 })
 
-app.listen({port: PORT}, ( err ) => {
+app.listen({port: PORT, host: '0.0.0.0'}, ( err ) => {
     if (err) {
         console.error(err)
         process.exit(1)
