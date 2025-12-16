@@ -5,12 +5,7 @@ import type { RawData } from 'ws'
 import { loadAsset, storeAsset } from './assets'
 import { makeOrLoadRoom } from './rooms'
 import { unfurl } from './unfurl'
-import {
-    lockColor,
-    unlockColor,
-    getAllLockedColors,
-    getUserLockedColor,
-} from './colorLocks'
+import { getAllLockedColors, getUserLockedColor, lockColor, unlockColor } from './colorLocks'
 
 const PORT = parseInt(process.env.PORT || '5858', 10)
 
@@ -45,8 +40,7 @@ app.register(async ( app ) => {
         }
     })
 
-    // Parse JSON for color lock endpoints
-    app.addContentTypeParser('application/json', { parseAs: 'string' }, ( req, body, done ) => {
+    app.addContentTypeParser('application/json', {parseAs: 'string'}, ( req, body, done ) => {
         try {
             const json = JSON.parse(body as string)
             done(null, json)
@@ -82,16 +76,15 @@ app.register(async ( app ) => {
         }
     })
 
-    // Color lock endpoints
     app.post('/color-lock/:roomId', async ( req, res ) => {
         const roomId = (req.params as any).roomId as string
-        const { color, userId, password } = req.body as { color: string; userId: string; password: string }
-        
+        const {color, userId, password} = req.body as { color: string; userId: string; password: string }
+
         if (!color || !userId || !password) {
             res.code(400)
-            return { success: false, message: 'Missing required fields: color, userId, password' }
+            return {success: false, message: 'Missing required fields: color, userId, password'}
         }
-        
+
         const result = lockColor(roomId, color, userId, password)
         res.code(result.success ? 200 : 400)
         return result
@@ -99,13 +92,13 @@ app.register(async ( app ) => {
 
     app.post('/color-unlock/:roomId', async ( req, res ) => {
         const roomId = (req.params as any).roomId as string
-        const { color, userId, password } = req.body as { color: string; userId: string; password: string }
-        
+        const {color, userId, password} = req.body as { color: string; userId: string; password: string }
+
         if (!color || !userId || !password) {
             res.code(400)
-            return { success: false, message: 'Missing required fields: color, userId, password' }
+            return {success: false, message: 'Missing required fields: color, userId, password'}
         }
-        
+
         const result = unlockColor(roomId, color, userId, password)
         res.code(result.success ? 200 : 400)
         return result
@@ -114,47 +107,42 @@ app.register(async ( app ) => {
     app.get('/color-locks/:roomId', async ( req, res ) => {
         const roomId = (req.params as any).roomId as string
         const locks = getAllLockedColors(roomId)
-        return { locks }
+        return {locks}
     })
 
     app.get('/user-locked-color/:roomId/:userId', async ( req, res ) => {
         const roomId = (req.params as any).roomId as string
         const userId = (req.params as any).userId as string
         const lockedColor = getUserLockedColor(roomId, userId)
-        return { color: lockedColor || null }
+        return {color: lockedColor || null}
     })
 
-    // WebSocket endpoint for color lock updates
     app.get('/color-locks-ws/:roomId', {websocket: true}, async ( socket, req ) => {
         const roomId = (req.params as any).roomId as string
         console.log(`Color lock WebSocket connection to room ${roomId}`)
-        
-        // Send initial state
+
         try {
             const locks = getAllLockedColors(roomId)
-            socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+            socket.send(JSON.stringify({type: 'color-lock-update', locks}))
         } catch (error) {
             console.error('Failed to send initial color lock state:', error)
         }
-        
-        // Keep connection alive and send updates periodically
-        // Note: In a production system, this should only send when locks change
+
         const interval = setInterval(() => {
             try {
                 const locks = getAllLockedColors(roomId)
-                socket.send(JSON.stringify({ type: 'color-lock-update', locks }))
+                socket.send(JSON.stringify({type: 'color-lock-update', locks}))
             } catch (error) {
-                // Socket likely closed, stop the interval
                 clearInterval(interval)
             }
         }, 1000)
-        
+
         socket.on('close', () => {
             console.log(`Color lock WebSocket disconnected from room ${roomId}`)
             clearInterval(interval)
         })
-        
-        socket.on('error', (error) => {
+
+        socket.on('error', ( error ) => {
             console.error(`Color lock WebSocket error for room ${roomId}:`, error)
             clearInterval(interval)
         })

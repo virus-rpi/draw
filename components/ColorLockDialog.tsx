@@ -1,37 +1,37 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 
 interface ColorLockDialogProps {
     color: string
     isLocking: boolean
-    onConfirm: (color: string, password: string) => void
+    onConfirm: ( color: string, password: string ) => void
     onCancel: () => void
     lockedColors?: Array<{ color: string; userId: string }>
 }
 
 const PRESET_COLORS = [
-    { name: 'black', label: 'Black', value: 'black' },
-    { name: 'grey', label: 'Grey', value: 'grey' },
-    { name: 'light-violet', label: 'Light Violet', value: 'light-violet' },
-    { name: 'violet', label: 'Violet', value: 'violet' },
-    { name: 'blue', label: 'Blue', value: 'blue' },
-    { name: 'light-blue', label: 'Light Blue', value: 'light-blue' },
-    { name: 'yellow', label: 'Yellow', value: 'yellow' },
-    { name: 'orange', label: 'Orange', value: 'orange' },
-    { name: 'green', label: 'Green', value: 'green' },
-    { name: 'light-green', label: 'Light Green', value: 'light-green' },
-    { name: 'light-red', label: 'Light Red', value: 'light-red' },
-    { name: 'red', label: 'Red', value: 'red' },
+    {name: 'black', label: 'Black', value: 'black'},
+    {name: 'grey', label: 'Grey', value: 'grey'},
+    {name: 'light-violet', label: 'Light Violet', value: 'light-violet'},
+    {name: 'violet', label: 'Violet', value: 'violet'},
+    {name: 'blue', label: 'Blue', value: 'blue'},
+    {name: 'light-blue', label: 'Light Blue', value: 'light-blue'},
+    {name: 'yellow', label: 'Yellow', value: 'yellow'},
+    {name: 'orange', label: 'Orange', value: 'orange'},
+    {name: 'green', label: 'Green', value: 'green'},
+    {name: 'light-green', label: 'Light Green', value: 'light-green'},
+    {name: 'light-red', label: 'Light Red', value: 'light-red'},
+    {name: 'red', label: 'Finn Red', value: 'red'},
 ]
 
-export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedColors = [] }: ColorLockDialogProps) {
+export function ColorLockDialog( {color, isLocking, onConfirm, onCancel, lockedColors = []}: ColorLockDialogProps ) {
     const [password, setPassword] = useState('')
     const [selectedColor, setSelectedColor] = useState(color)
-    
-    const isColorLocked = (colorValue: string) => {
+
+    const isColorLocked = ( colorValue: string ) => {
         return lockedColors.some(lock => lock.color === colorValue)
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = ( e: React.FormEvent ) => {
         e.preventDefault()
         if (password && selectedColor) {
             onConfirm(selectedColor, password)
@@ -64,22 +64,22 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedC
                     maxWidth: '400px',
                     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
                 }}
-                onClick={(e) => e.stopPropagation()}
+                onClick={( e ) => e.stopPropagation()}
             >
-                <h2 style={{ margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600 }}>
+                <h2 style={{margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600}}>
                     Lock / Unlock / Take Over Color
                 </h2>
-                <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#666' }}>
+                <p style={{margin: '0 0 16px 0', fontSize: '14px', color: '#666'}}>
                     Enter the password to lock or take over a color. Use the same password to unlock it later.
                 </p>
                 <form onSubmit={handleSubmit}>
-                    <div style={{ marginBottom: '16px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500 }}>
+                    <div style={{marginBottom: '16px'}}>
+                        <label style={{display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500}}>
                             Select color:
                         </label>
                         <select
                             value={selectedColor}
-                            onChange={(e) => setSelectedColor(e.target.value)}
+                            onChange={( e ) => setSelectedColor(e.target.value)}
                             style={{
                                 width: '100%',
                                 padding: '8px',
@@ -89,7 +89,7 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedC
                                 boxSizing: 'border-box',
                             }}
                         >
-                            {PRESET_COLORS.map((c) => (
+                            {PRESET_COLORS.map(( c ) => (
                                 <option key={c.value} value={c.value}>
                                     {c.label} {isColorLocked(c.value) ? '🔒' : ''}
                                 </option>
@@ -99,7 +99,7 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedC
                     <input
                         type="password"
                         value={password}
-                        onChange={(e) => setPassword(e.target.value)}
+                        onChange={( e ) => setPassword(e.target.value)}
                         placeholder="Enter password"
                         style={{
                             width: '100%',
@@ -112,7 +112,7 @@ export function ColorLockDialog({ color, isLocking, onConfirm, onCancel, lockedC
                         }}
                         autoFocus
                     />
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <div style={{display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
                         <button
                             type="button"
                             onClick={onCancel}

@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
     AssetRecordType,
+    DefaultColorThemePalette,
     DefaultQuickActions,
     DefaultQuickActionsContent,
+    DefaultStylePanel,
+    DefaultStylePanelContent,
+    Editor,
     getHashForString,
     TLAssetStore,
     TLBookmarkAsset,
@@ -12,12 +16,6 @@ import {
     Tldraw,
     TldrawUiMenuItem,
     uniqueId,
-    Editor,
-    DefaultStylePanel,
-    DefaultStylePanelContent,
-    useEditor,
-    useValue,
-    DefaultColorThemePalette,
 } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
@@ -25,7 +23,6 @@ import { useColorLock } from './useColorLock'
 import { ColorLockDialog } from './ColorLockDialog'
 import { CustomAlert } from './CustomAlert'
 
-// Replace the default red color with #ec2d44
 DefaultColorThemePalette.lightMode.red.solid = '#ec2d44'
 DefaultColorThemePalette.darkMode.red.solid = '#ec2d44'
 
@@ -42,10 +39,10 @@ function generateUUID(): string {
 
 
 function CustomQuickActions( {
-    writeOwnOnly, 
-    onToggle,
-    onColorLock
-}: { 
+                                 writeOwnOnly,
+                                 onToggle,
+                                 onColorLock,
+                             }: {
     writeOwnOnly: boolean
     onToggle: () => void
     onColorLock: () => void
@@ -68,20 +65,20 @@ function CustomQuickActions( {
     )
 }
 
-function CustomStylePanel({ 
-    myLockedColor, 
-    canUseColor, 
-    isColorLocked,
-    lockedColors
-}: { 
+function CustomStylePanel( {
+                               myLockedColor,
+                               canUseColor,
+                               isColorLocked,
+                               lockedColors,
+                           }: {
     myLockedColor: string | null
-    canUseColor: (color: string) => boolean
-    isColorLocked: (color: string) => boolean
+    canUseColor: ( color: string ) => boolean
+    isColorLocked: ( color: string ) => boolean
     lockedColors: Array<{ color: string; userId: string }>
-}) {
+} ) {
     return (
         <DefaultStylePanel>
-            <DefaultStylePanelContent />
+            <DefaultStylePanelContent/>
         </DefaultStylePanel>
     )
 }
@@ -97,20 +94,18 @@ export default function TldrawEditor() {
     const [alertMessage, setAlertMessage] = useState<string | null>(null)
     const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info')
     const editorRef = useRef<Editor | null>(null)
-    const setAlertRef = useRef<((msg: string, type: 'info' | 'success' | 'error') => void) | null>(null)
+    const setAlertRef = useRef<(( msg: string, type: 'info' | 'success' | 'error' ) => void) | null>(null)
 
-    // Create a stable reference for setting alerts from side effects
     useEffect(() => {
-        setAlertRef.current = (msg: string, type: 'info' | 'success' | 'error') => {
+        setAlertRef.current = ( msg: string, type: 'info' | 'success' | 'error' ) => {
             setAlertType(type)
             setAlertMessage(msg)
         }
     }, [])
 
     const colorLock = useColorLock(roomId, userId)
-    const { myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors } = colorLock
-    
-    // Create refs for functions that need to be accessed from side effect handlers
+    const {myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors} = colorLock
+
     const canUseColorRef = useRef(canUseColor)
     const lockedColorsRef = useRef(lockedColors)
     const userIdRef = useRef(userId)
@@ -118,7 +113,7 @@ export default function TldrawEditor() {
     useEffect(() => {
         writeOwnOnlyRef.current = writeOwnOnly
     }, [writeOwnOnly])
-    
+
     useEffect(() => {
         canUseColorRef.current = canUseColor
         lockedColorsRef.current = lockedColors
@@ -126,7 +121,6 @@ export default function TldrawEditor() {
     }, [canUseColor, lockedColors, userId])
 
     useEffect(() => {
-        // Generate or retrieve user ID
         let storedUserId = localStorage.getItem('draw-user-id')
         if (!storedUserId) {
             storedUserId = generateUUID()
@@ -181,10 +175,8 @@ export default function TldrawEditor() {
         const editor = editorRef.current
         if (!editor) return
 
-        // Default to black color - user will select the color in the dialog
         let currentColor = 'black'
-        
-        // Try to get color from selected shapes as a hint
+
         const selectedShapes = editor.getSelectedShapes()
         if (selectedShapes.length > 0) {
             const firstShape = selectedShapes[0] as any
@@ -192,27 +184,23 @@ export default function TldrawEditor() {
                 currentColor = firstShape.props.color
             }
         }
-        
-        // Always set to lock mode - the dialog will work for both lock and unlock
+
         setColorLockMode('lock')
 
         setSelectedColorForLock(currentColor)
         setShowColorLockDialog(true)
     }
 
-    const handleColorLockConfirm = async (color: string, password: string) => {
-        // Check if this color is locked by the current user
+    const handleColorLockConfirm = async ( color: string, password: string ) => {
         const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
-        
+
         let result
         if (myLock) {
-            // User owns this lock, so unlock it
             result = await unlockColor(color, password)
         } else {
-            // Either not locked or locked by someone else - try to lock/takeover
             result = await lockColor(color, password)
         }
-        
+
         if (result.success) {
             setAlertType('success')
             setAlertMessage(result.message)
@@ -229,8 +217,7 @@ export default function TldrawEditor() {
         userInfo: userId ? {
             id: userId,
             name: `User ${userId.slice(0, 8)}`,
-            // Only set cursor color if user has a locked color, otherwise use default
-            ...(myLockedColor ? { color: myLockedColor } : {}),
+            ...(myLockedColor ? {color: myLockedColor} : {}),
         } : undefined,
     })
 
@@ -278,11 +265,9 @@ export default function TldrawEditor() {
                         editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
                         editor.setCurrentTool('draw')
 
-                        // Register handler to check and add owner metadata to shapes
                         editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
                             const currentUserId = editor.user.getId()
-                            
-                            // Just add owner metadata - color validation happens in afterCreate handler
+
                             return {
                                 ...shape,
                                 meta: {
@@ -291,23 +276,16 @@ export default function TldrawEditor() {
                                 },
                             }
                         })
-                        
-                        // Register afterCreate handler to immediately remove shapes with locked colors
+
                         editor.store.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
                             const shapeColor = (shape as any).props?.color
-                            
-                            // If shape was created with a locked color, delete it immediately
                             if (shapeColor && !canUseColorRef.current(shapeColor)) {
                                 console.log('Shape created with locked color, deleting immediately')
-                                
-                                // Delete the shape
                                 editor.deleteShape(shape.id)
-                                
-                                // Show alert once
                                 if (setAlertRef.current) {
                                     setAlertRef.current(
                                         `Cannot draw with locked color "${shapeColor}". Please select an unlocked color.`,
-                                        'info'
+                                        'info',
                                     )
                                 }
                             }
@@ -315,28 +293,22 @@ export default function TldrawEditor() {
 
                         editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
                             const currentUserId = editor.user.getId()
-                            
-                            // Check writeOwnOnly mode
                             if (writeOwnOnlyRef.current && prev.meta.ownerId !== currentUserId) {
                                 return prev
                             }
-                            
-                            // Check color lock
                             const prevColor = (prev as any).props?.color
                             const nextColor = (next as any).props?.color
-                            
-                            // If color is changing to a locked color user doesn't own, prevent it
+
                             if (nextColor && nextColor !== prevColor && !canUseColorRef.current(nextColor)) {
                                 console.log('Attempted color change to locked color, prevented')
                                 return prev
                             }
-                            
-                            // If shape has a locked color and user doesn't own the lock, prevent modifications
+
                             if (prevColor && !canUseColorRef.current(prevColor)) {
                                 console.log('Shape has locked color user does not own, preventing modification')
                                 return prev
                             }
-                            
+
                             return next
                         })
 
@@ -351,44 +323,40 @@ export default function TldrawEditor() {
                             return next
                         })
 
-                        // Prevent selecting locked colors in the UI
                         editor.sideEffects.registerBeforeChangeHandler('instance', ( prev, next ) => {
-                            // Check if stylesForNextShape is changing
                             const prevStyles = (prev as any).stylesForNextShape
                             const nextStyles = (next as any).stylesForNextShape
-                            
+
                             if (nextStyles && nextStyles.color && prevStyles?.color !== nextStyles.color) {
                                 const newColor = nextStyles.color
                                 if (!canUseColorRef.current(newColor)) {
                                     console.log('Locked color selected in UI, reverting')
-                                    // Use ref to avoid React lifecycle issues when called from side effect
                                     if (setAlertRef.current) {
                                         setAlertRef.current(
                                             `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
-                                            'info'
+                                            'info',
                                         )
                                     }
                                     return prev
                                 }
                             }
-                            
+
                             return next
                         })
 
                         editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
                             const currentUserId = editor.user.getId()
-                            
+
                             if (writeOwnOnlyRef.current && shape.meta.ownerId !== currentUserId) {
                                 return false
                             }
-                            
-                            // Check if shape has a locked color user doesn't own
+
                             const shapeColor = (shape as any).props?.color
                             if (shapeColor && !canUseColorRef.current(shapeColor)) {
                                 console.log('Shape has locked color user does not own, preventing deletion')
                                 return false
                             }
-                            
+
                             return
                         })
 

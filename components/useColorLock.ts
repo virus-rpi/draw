@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface LockedColor {
     color: string
@@ -23,21 +23,20 @@ const getWsServerUrl = () => {
     return baseUrl.replace(/^http/, 'ws')
 }
 
-export function useColorLock(roomId: string, userId: string) {
+export function useColorLock( roomId: string, userId: string ) {
     const [lockedColors, setLockedColors] = useState<LockedColor[]>([])
     const [myLockedColor, setMyLockedColor] = useState<string | null>(null)
     const wsRef = useRef<WebSocket | null>(null)
 
     const fetchLockedColors = useCallback(async () => {
         if (!roomId) return
-        
+
         try {
             const response = await fetch(`${getSyncServerUrl()}/color-locks/${encodeURIComponent(roomId)}`)
             const data = await response.json()
             setLockedColors(data.locks || [])
-            
-            // Update my locked color
-            const myLock = data.locks?.find((lock: LockedColor) => lock.userId === userId)
+
+            const myLock = data.locks?.find(( lock: LockedColor ) => lock.userId === userId)
             setMyLockedColor(myLock?.color || null)
         } catch (error) {
             console.error('Failed to fetch locked colors:', error)
@@ -47,104 +46,102 @@ export function useColorLock(roomId: string, userId: string) {
     useEffect(() => {
         if (!roomId || !userId) return
 
-        // Initial fetch
-        fetchLockedColors()
-        
-        // Connect to WebSocket for real-time updates
+        fetchLockedColors().then()
+
         const wsUrl = `${getWsServerUrl()}/color-locks-ws/${encodeURIComponent(roomId)}`
         const ws = new WebSocket(wsUrl)
-        
+
         ws.onopen = () => {
             console.log('Color lock WebSocket connected')
         }
-        
-        ws.onmessage = (event) => {
+
+        ws.onmessage = ( event ) => {
             try {
                 const data = JSON.parse(event.data)
                 if (data.type === 'color-lock-update') {
                     setLockedColors(data.locks || [])
-                    const myLock = data.locks?.find((lock: LockedColor) => lock.userId === userId)
+                    const myLock = data.locks?.find(( lock: LockedColor ) => lock.userId === userId)
                     setMyLockedColor(myLock?.color || null)
                 }
             } catch (error) {
                 console.error('Failed to parse WebSocket message:', error)
             }
         }
-        
-        ws.onerror = (error) => {
+
+        ws.onerror = ( error ) => {
             console.error('WebSocket error:', error)
         }
-        
+
         ws.onclose = () => {
             console.log('Color lock WebSocket disconnected')
         }
-        
+
         wsRef.current = ws
-        
+
         return () => {
             if (wsRef.current) {
                 wsRef.current.close()
                 wsRef.current = null
             }
         }
-    }, [roomId, userId]) // Removed fetchLockedColors from dependencies
+    }, [roomId, userId])
 
-    const lockColor = useCallback(async (color: string, password: string): Promise<ColorLockResult> => {
+    const lockColor = useCallback(async ( color: string, password: string ): Promise<ColorLockResult> => {
         try {
             const response = await fetch(`${getSyncServerUrl()}/color-lock/${encodeURIComponent(roomId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ color, userId, password }),
+                body: JSON.stringify({color, userId, password}),
             })
-            
+
             const result = await response.json()
-            
+
             if (result.success) {
                 await fetchLockedColors()
             }
-            
+
             return result
         } catch (error) {
             console.error('Failed to lock color:', error)
-            return { success: false, message: 'Network error' }
+            return {success: false, message: 'Network error'}
         }
     }, [roomId, userId, fetchLockedColors])
 
-    const unlockColor = useCallback(async (color: string, password: string): Promise<ColorLockResult> => {
+    const unlockColor = useCallback(async ( color: string, password: string ): Promise<ColorLockResult> => {
         try {
             const response = await fetch(`${getSyncServerUrl()}/color-unlock/${encodeURIComponent(roomId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ color, userId, password }),
+                body: JSON.stringify({color, userId, password}),
             })
-            
+
             const result = await response.json()
-            
+
             if (result.success) {
                 await fetchLockedColors()
             }
-            
+
             return result
         } catch (error) {
             console.error('Failed to unlock color:', error)
-            return { success: false, message: 'Network error' }
+            return {success: false, message: 'Network error'}
         }
     }, [roomId, userId, fetchLockedColors])
 
-    const isColorLocked = useCallback((color: string): boolean => {
+    const isColorLocked = useCallback(( color: string ): boolean => {
         return lockedColors.some(lock => lock.color === color)
     }, [lockedColors])
 
-    const canUseColor = useCallback((color: string): boolean => {
+    const canUseColor = useCallback(( color: string ): boolean => {
         const lock = lockedColors.find(lock => lock.color === color)
         return !lock || lock.userId === userId
     }, [lockedColors, userId])
 
-    const getColorOwner = useCallback((color: string): string | undefined => {
+    const getColorOwner = useCallback(( color: string ): string | undefined => {
         return lockedColors.find(lock => lock.color === color)?.userId
     }, [lockedColors])
 
