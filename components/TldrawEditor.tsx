@@ -229,7 +229,8 @@ export default function TldrawEditor() {
         userInfo: userId ? {
             id: userId,
             name: `User ${userId.slice(0, 8)}`,
-            color: myLockedColor || '#000000',
+            // Only set cursor color if user has a locked color, otherwise use default
+            ...(myLockedColor ? { color: myLockedColor } : {}),
         } : undefined,
     })
 
@@ -277,47 +278,39 @@ export default function TldrawEditor() {
                         editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
                         editor.setCurrentTool('draw')
 
+                        // Register handler to check and add owner metadata to shapes
                         editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
+                            const currentUserId = editor.user.getId()
+                            
+                            // Just add owner metadata - color validation happens in beforeChange handler
+                            return {
+                                ...shape,
+                                meta: {
+                                    ...shape.meta,
+                                    ownerId: currentUserId,
+                                },
+                            }
+                        })
+                        
+                        // Register afterCreate handler to immediately remove shapes with locked colors
+                        editor.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
                             const shapeColor = (shape as any).props?.color
                             const currentUserId = editor.user.getId()
                             
-                            console.log('Shape creation:', {
-                                color: shapeColor,
-                                userId: currentUserId,
-                                canUse: canUseColorRef.current(shapeColor)
-                            })
-                            
-                            // Check if the color is locked and user doesn't own it
-                            let newShape = { ...shape }
+                            // If shape was created with a locked color, delete it immediately
                             if (shapeColor && !canUseColorRef.current(shapeColor)) {
-                                console.log('Color is locked by another user, preventing shape creation')
-                                // Find a color the user can use (their locked color or black)
-                                const myLock = lockedColorsRef.current.find(lock => lock.userId === currentUserId)
-                                const fallbackColor = myLock ? myLock.color : 'black'
+                                console.log('Shape created with locked color, deleting immediately')
                                 
-                                newShape = {
-                                    ...shape,
-                                    props: {
-                                        ...(shape as any).props,
-                                        color: fallbackColor,
-                                    },
-                                } as typeof shape
+                                // Delete the shape
+                                editor.deleteShape(shape.id)
                                 
-                                // Show alert
+                                // Show alert once
                                 if (setAlertRef.current) {
                                     setAlertRef.current(
-                                        `Cannot use locked color "${shapeColor}". Using ${fallbackColor} instead.`,
+                                        `Cannot draw with locked color "${shapeColor}". Please select an unlocked color.`,
                                         'info'
                                     )
                                 }
-                            }
-                            
-                            return {
-                                ...newShape,
-                                meta: {
-                                    ...newShape.meta,
-                                    ownerId: currentUserId,
-                                },
                             }
                         })
 
