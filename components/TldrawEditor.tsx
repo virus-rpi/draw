@@ -54,10 +54,14 @@ export default function TldrawEditor() {
     }, [roomId])
 
 
-    const WORKER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL || 'http://localhost:5858'
+    // Use custom sync server if specified, otherwise fall back to demo sync
+    const SYNC_SERVER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL
+    const USE_DEMO_SYNC = !SYNC_SERVER_URL
 
     const store = useSync({
-        uri: `${WORKER_URL}/connect/${roomId}`,
+        uri: USE_DEMO_SYNC 
+            ? `https://demo.tldraw.xyz/connect/${roomId}`
+            : `${SYNC_SERVER_URL}/connect/${roomId}`,
         assets: multiplayerAssets,
     })
 
@@ -87,11 +91,10 @@ export default function TldrawEditor() {
 const multiplayerAssets: TLAssetStore = {
     // to upload an asset, we prefix it with a unique id, POST it to our worker, and return the URL
     async upload(_asset, file) {
-        const WORKER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL || 'http://localhost:5858'
+        // Use Next.js API route for assets (works on Vercel)
         const id = uniqueId()
-
         const objectName = `${id}-${file.name}`
-        const url = `${WORKER_URL}/uploads/${encodeURIComponent(objectName)}`
+        const url = `/api/uploads/${encodeURIComponent(objectName)}`
 
         const response = await fetch(url, {
             method: 'PUT',
@@ -113,7 +116,7 @@ const multiplayerAssets: TLAssetStore = {
 
 // How does our server handle bookmark unfurling?
 async function unfurlBookmarkUrl({ url }: { url: string }): Promise<TLBookmarkAsset> {
-    const WORKER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL || 'http://localhost:5858'
+    // Use Next.js API route for unfurling (works on Vercel)
     const asset: TLBookmarkAsset = {
         id: AssetRecordType.createId(getHashForString(url)),
         typeName: 'asset',
@@ -129,7 +132,7 @@ async function unfurlBookmarkUrl({ url }: { url: string }): Promise<TLBookmarkAs
     }
 
     try {
-        const response = await fetch(`${WORKER_URL}/unfurl?url=${encodeURIComponent(url)}`)
+        const response = await fetch(`/api/unfurl?url=${encodeURIComponent(url)}`)
         const data = await response.json()
 
         asset.props.description = data?.description ?? ''

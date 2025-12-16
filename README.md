@@ -5,10 +5,12 @@ A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.c
 ## Features
 
 - 🎨 **Full-featured drawing tools** - Pen, shapes, text, images, and more
-- 👥 **Multiplayer ready** - Built with tldraw sync for real-time collaboration
+- 👥 **Multiplayer ready** - Real-time collaboration with custom sync server
 - 🎯 **Minimalist UI** - Clean, modern interface that gets out of your way
 - 🔗 **Easy sharing** - Each session gets a unique room ID in the URL
 - ⚡ **Fast & responsive** - Built with Next.js and React
+- 💾 **Asset support** - Upload and manage images, videos, and other media
+- 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
 
 ## Getting Started
 
@@ -22,48 +24,161 @@ A simple, minimalist multiplayer whiteboard powered by [tldraw](https://tldraw.c
 ```bash
 # Install dependencies
 npm install
+```
 
-# Run development server
+### Development
+
+**Option 1: With Custom Sync Server (Local Development)**
+
+Run both the sync server and Next.js client:
+
+```bash
 npm run dev
+```
 
-# Build for production
-npm run build
+This will start:
+- Sync server on `http://localhost:5858` (WebSocket + HTTP)
+- Next.js app on `http://localhost:3000`
 
-# Start production server
-npm start
+**Option 2: Client Only (Uses tldraw demo sync)**
+
+Run just the Next.js client (uses tldraw's demo sync server):
+
+```bash
+npm run dev:client
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser.
 
-### Usage
+### Production
 
-1. Open the app - a unique room ID will be generated automatically
-2. Share the URL with others to collaborate in real-time
-3. Start drawing!
+Build and start for production:
 
-Each room persists for the duration of the session. To join an existing room, simply use the same URL with the room parameter.
+```bash
+npm run build
+npm start
+```
 
-## Tech Stack
+## Architecture
 
-- **Next.js 14** - React framework with App Router
-- **tldraw** - Infinite canvas whiteboard
+### Components
+
+1. **Next.js Frontend** (`/app`, `/components`)
+   - React-based UI with tldraw canvas
+   - Client-side room management
+   - WebSocket connection to sync server
+
+2. **Custom Sync Server** (`/server`)
+   - FastifyJS-based WebSocket server
+   - SQLite storage for room persistence
+   - Asset upload/download endpoints
+   - Bookmark unfurling service
+
+3. **Next.js API Routes** (`/app/api`)
+   - `/api/uploads/[id]` - Asset storage (works on Vercel)
+   - `/api/unfurl` - Bookmark metadata fetching (works on Vercel)
+
+### Tech Stack
+
+- **Next.js 16** - React framework with App Router
+- **tldraw 4.2** - Infinite canvas whiteboard
 - **TypeScript** - Type-safe development
 - **Tailwind CSS** - Utility-first styling
+- **Fastify** - High-performance web framework
+- **SQLite** - Local database for room persistence
+- **better-sqlite3** - Synchronous SQLite bindings
 
 ## Deployment
 
-This app can be deployed to any platform that supports Next.js:
+### Deploy to Vercel (Recommended)
 
-- **Vercel** (recommended) - Zero configuration deployment
-- **Netlify** - Automatic builds and deployments
-- **Railway** - Simple container-based hosting
-- **Self-hosted** - Docker or Node.js server
+The app is configured to work on Vercel out of the box:
 
-### Environment Considerations
+1. **Push to GitHub**
+   ```bash
+   git push origin main
+   ```
 
-The application uses tldraw's demo sync server for real-time collaboration. For production use, consider:
-- Setting up your own sync server using [@tldraw/sync](https://www.npmjs.com/package/@tldraw/sync)
-- Or deploying with PartyKit for serverless real-time sync
+2. **Import to Vercel**
+   - Go to [vercel.com](https://vercel.com)
+   - Click "New Project"
+   - Import your GitHub repository
+   - Click "Deploy"
+
+3. **Configuration**
+   - The app uses tldraw's demo sync server by default on Vercel
+   - Assets and unfurling work through Next.js API routes
+   - No additional configuration needed!
+
+4. **(Optional) Use Custom Sync Server**
+   
+   If you want to use your own sync server instead of the demo:
+   
+   a. Deploy the sync server to Railway/Render/Fly.io:
+      ```bash
+      # Example for Railway
+      railway init
+      railway up
+      ```
+   
+   b. Set environment variable in Vercel:
+      - Go to Project Settings → Environment Variables
+      - Add: `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://your-sync-server.railway.app`
+
+### Deploy Sync Server Separately
+
+If you need persistent storage and want your own sync server:
+
+**Option 1: Railway**
+1. Create a new project on [railway.app](https://railway.app)
+2. Connect your GitHub repository
+3. Set the start command: `npm run start:server`
+4. Deploy
+
+**Option 2: Render**
+1. Create a new Web Service on [render.com](https://render.com)
+2. Connect your repository
+3. Set build command: `npm install`
+4. Set start command: `npm run start:server`
+5. Deploy
+
+**Option 3: Fly.io**
+```bash
+fly launch
+fly deploy
+```
+
+### Self-Hosted Deployment
+
+Deploy both frontend and sync server:
+
+```bash
+# Build the Next.js app
+npm run build
+
+# Start both servers
+npm start
+```
+
+Or use Docker:
+
+```bash
+# Coming soon
+```
+
+## Environment Variables
+
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `NEXT_PUBLIC_SYNC_SERVER_URL` | Custom sync server URL | tldraw demo server | No |
+
+## Data Persistence
+
+- **Rooms**: Stored in SQLite databases in `./.rooms` directory
+- **Assets**: Stored in filesystem in `./.assets` directory
+- **Note**: On Vercel, data is ephemeral. For production, use:
+  - [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) for assets
+  - External sync server (Railway, Render) for rooms
 
 ## Known Issues
 
