@@ -179,26 +179,23 @@ export default function TldrawEditor() {
         const editor = editorRef.current
         if (!editor) return
 
-        // Get the current drawing color from editor's instance state
+        // Get the current drawing color
         let currentColor = 'black' // default
         
-        const selectedShapes = editor.getSelectedShapes()
-        if (selectedShapes.length > 0) {
-            // If shapes are selected, use the first shape's color
-            const firstShape = selectedShapes[0] as any
-            if (firstShape?.props?.color) {
-                currentColor = firstShape.props.color
+        // Try to get the last used color from user preferences
+        try {
+            const userPreferences = editor.user.getUserPreferences()
+            if ((userPreferences as any).colorScheme) {
+                currentColor = (userPreferences as any).colorScheme
             }
-        } else {
-            // No shapes selected - get the current style for next shape
-            try {
-                const instanceState = editor.getInstanceState()
-                const stylesForNextShape = (instanceState as any).stylesForNextShape
-                if (stylesForNextShape && stylesForNextShape.color) {
-                    currentColor = stylesForNextShape.color
+        } catch (e) {
+            // Fallback to checking selected shapes
+            const selectedShapes = editor.getSelectedShapes()
+            if (selectedShapes.length > 0) {
+                const firstShape = selectedShapes[0] as any
+                if (firstShape?.props?.color) {
+                    currentColor = firstShape.props.color
                 }
-            } catch (e) {
-                console.log('Using default color')
             }
         }
 
@@ -214,12 +211,12 @@ export default function TldrawEditor() {
         setShowColorLockDialog(true)
     }
 
-    const handleColorLockConfirm = async (password: string) => {
+    const handleColorLockConfirm = async (color: string, password: string) => {
         let result
         if (colorLockMode === 'lock') {
-            result = await lockColor(selectedColorForLock, password)
+            result = await lockColor(color, password)
         } else {
-            result = await unlockColor(selectedColorForLock, password)
+            result = await unlockColor(color, password)
         }
         
         if (result.success) {
