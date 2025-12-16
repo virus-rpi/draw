@@ -257,21 +257,35 @@ export default function TldrawEditor() {
                     editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
                     editor.setCurrentTool('draw')
 
-                    editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
-                        if (shape.meta.ownerId) return shape
-                        const currentUserId = editor.user.getId()
-                        return {
-                            ...shape,
-                            meta: {
-                                ...shape.meta,
-                                ownerId: currentUserId,
-                            },
-                        }
-                    })
+                    let lastToastMessage = ''
+                    let lastToastTime = 0
+                    const TOAST_DEBOUNCE_MS = 1000
 
-                    editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
+                    const showToast = ( title: string, severity: 'info' | 'success' | 'error' ) => {
+                        const now = Date.now()
+                        if (title === lastToastMessage && (now - lastToastTime) < TOAST_DEBOUNCE_MS) {
+                            return
+                        }
+                        lastToastMessage = title
+                        lastToastTime = now
+
+                        const event = new CustomEvent('show-toast', {
+                            detail: {title, severity},
+                        })
+                        window.dispatchEvent(event)
+                    }
+
+                    editor.getInitialMetaForShape = ( _shape ) => {
+                        return {
+                            ownerId: editor.user.getId(),
+                        }
+                    }
+
+                    editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next, source ) => {
+                        if (source !== 'user') return next
                         const currentUserId = editor.user.getId()
                         if (writeOwnOnlyRef.current && prev.meta.ownerId !== currentUserId) {
+                            console.log('Shape owned by another user, preventing modification')
                             return prev
                         }
                         const prevColor = (prev as any).props?.color
@@ -279,18 +293,25 @@ export default function TldrawEditor() {
 
                         if (nextColor && nextColor !== prevColor && !canUseColorRef.current(nextColor)) {
                             console.log('Attempted color change to locked color, prevented')
+                            showToast(
+                                `The color "${nextColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
+                                'info',
+                            )
                             return prev
                         }
 
-                        if (prevColor && !canUseColorRef.current(prevColor) && !(prev.meta.ownerId === currentUserId)) {
+                        if (prevColor && !canUseColorRef.current(prevColor)) {
                             console.log('Shape has locked color user does not own, preventing modification')
+                            showToast(
+                                `This shape is using the locked color "${prevColor}". You cannot modify it unless you lock it with the password.`,
+                                'info',
+                            )
                             return prev
                         }
-
                         return next
                     })
 
-                    editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
+                    editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( _prev, next ) => {
                         if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
                         const shapes = editor.getCurrentPageShapes()
                         next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
@@ -309,24 +330,21 @@ export default function TldrawEditor() {
                             const newColor = nextStyles['tldraw:color']
                             if (!canUseColorRef.current(newColor)) {
                                 console.log('Locked color selected in UI, reverting')
-                                setTimeout(() => {
-                                    const event = new CustomEvent('show-toast', {
-                                        detail: {
-                                            title: `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
-                                            severity: 'info',
-                                        },
-                                    })
-                                    window.dispatchEvent(event)
-                                }, 0)
+                                showToast(
+                                    `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
+                                    'info',
+                                )
                                 return prev
                             }
                         }
                         return next
                     })
 
-                    editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
+                    editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape, source ) => {
+                        if (source !== 'user') return
                         const currentUserId = editor.user.getId()
                         if (writeOwnOnlyRef.current && shape.meta.ownerId !== currentUserId) {
+                            console.log('Shape owned by another user, preventing deletion')
                             return false
                         }
                         return
