@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { TLUiDialogProps, TLUiDialogsContextType } from 'tldraw'
 
 interface ColorLockDialogProps {
     color: string

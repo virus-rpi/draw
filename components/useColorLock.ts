@@ -41,8 +41,8 @@ export function useColorLock(roomId: string, userId: string) {
     useEffect(() => {
         fetchLockedColors()
         
-        // Poll for updates every 2 seconds
-        const interval = setInterval(fetchLockedColors, 2000)
+        // Poll for updates every 5 seconds
+        const interval = setInterval(fetchLockedColors, 5000)
         
         return () => clearInterval(interval)
     }, [fetchLockedColors])
