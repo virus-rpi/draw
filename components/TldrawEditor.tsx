@@ -121,28 +121,6 @@ export default function TldrawEditor() {
         setRoomId(room)
     }, [])
 
-    useEffect(() => {
-        if (!roomId) return
-        const removeWatermark = () => {
-            const elementToRemove = document.querySelector('.tl-watermark_SEE-LICENSE')
-            if (elementToRemove) {
-                elementToRemove.remove()
-            }
-        }
-        removeWatermark()
-        const observer = new MutationObserver(() => {
-            removeWatermark()
-        })
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-        })
-        return () => {
-            observer.disconnect()
-        }
-    }, [roomId])
-
-
     const getSyncUrl = () => {
         if (process.env.NEXT_PUBLIC_SYNC_SERVER_URL) {
             return `${process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/connect/${roomId}`
