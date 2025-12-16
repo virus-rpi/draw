@@ -11,10 +11,10 @@ const Z_INDEX_ALERT = 10001
 
 export function CustomAlert({ message, onClose, type = 'info' }: CustomAlertProps) {
     useEffect(() => {
-        // Auto-close after 5 seconds
+        // Auto-close after 10 seconds
         const timer = setTimeout(() => {
             onClose()
-        }, 5000)
+        }, 10000)
         
         return () => clearTimeout(timer)
     }, []) // Empty dependency array - only run once on mount
