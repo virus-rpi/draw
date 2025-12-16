@@ -78,7 +78,7 @@ This script automatically:
 2. Deploys frontend to Vercel
 3. Connects them with environment variables
 
-**Manual Deployment**
+**Option 1: Railway Deployment**
 
 1. **Deploy Sync Server to Railway:**
    ```bash
@@ -92,6 +92,33 @@ This script automatically:
    - Import to Vercel
    - Add environment variable: `NEXT_PUBLIC_SYNC_SERVER_URL` = your Railway URL
    - Deploy
+
+**Option 2: Raspberry Pi + Cloudflare Tunnel** 🆕
+
+Run the sync server on your Raspberry Pi and expose it via Cloudflare Tunnel:
+
+1. **Deploy sync server on Raspberry Pi:**
+   ```bash
+   docker-compose up -d
+   ```
+
+2. **Set up Cloudflare Tunnel:**
+   ```bash
+   cloudflared tunnel create draw-sync
+   cloudflared tunnel route dns draw-sync draw-sync.yourdomain.com
+   ```
+
+3. **Configure Vercel:**
+   - Set `NEXT_PUBLIC_SYNC_SERVER_URL` = `https://draw-sync.yourdomain.com`
+
+**See [RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md) for complete guide**
+
+**Benefits:**
+- ✅ Your own hardware - full control
+- ✅ No port forwarding needed
+- ✅ Free Cloudflare tunnel
+- ✅ Automatic HTTPS
+- ✅ Data stays on your infrastructure
 
 **Self-Hosted (Integrated Server)**
 
@@ -118,9 +145,12 @@ This app features an **integrated WebSocket sync server** that handles real-time
 
 **For Vercel Deployment:**
 - Frontend: Deployed to Vercel (serverless)
-- Sync Server: Deployed to Railway (WebSocket support)
+- Sync Server: Choose one:
+  - **Railway** (cloud hosting)
+  - **Raspberry Pi + Cloudflare Tunnel** (your hardware) 🆕
 - Connected via `NEXT_PUBLIC_SYNC_SERVER_URL` environment variable
-- Automated with `./scripts/deploy-to-vercel.sh`
+- Automated Railway deployment: `./scripts/deploy-to-vercel.sh`
+- Raspberry Pi setup: See [RASPBERRY_PI_SETUP.md](./RASPBERRY_PI_SETUP.md)
 
 ### Components
 
@@ -143,7 +173,15 @@ This app features an **integrated WebSocket sync server** that handles real-time
    - `/api/uploads/[id]` - Asset storage using Vercel Blob
    - `/api/unfurl` - Bookmark metadata fetching
 
-### Why Two Deployment Methods?
+### Deployment Options Comparison
+
+| Method | Pros | Cons | Cost |
+|--------|------|------|------|
+| **Self-Hosted** | Full control, simple setup | Requires server | Server cost |
+| **Railway** | Easy, managed, free tier | Limited free tier | $0-5/month |
+| **Raspberry Pi + Cloudflare** | Own hardware, private, free tunnel | Initial setup, maintain Pi | $2-5/month (power) |
+
+### Why Separate Sync Server for Vercel?
 
 - **Vercel limitation**: No WebSocket support in serverless
 - **Solution**: Deploy sync server to Railway (supports WebSockets)

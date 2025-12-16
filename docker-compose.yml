@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  sync-server:
+    build: .
+    container_name: draw-sync-server
+    ports:
+      - "5858:5858"
+    volumes:
+      # Persist room data
+      - ./data/rooms:/app/.rooms
+      # Persist assets (optional - use Vercel Blob instead)
+      - ./data/assets:/app/.assets
+    environment:
+      - PORT=5858
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - draw-network
+
+networks:
+  draw-network:
+    driver: bridge
