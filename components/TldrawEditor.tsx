@@ -12,16 +12,15 @@ import {
     getHashForString,
     TLAssetStore,
     TLBookmarkAsset,
-    TLComponents,
     Tldraw,
     TldrawUiMenuItem,
     uniqueId,
+    useToasts,
 } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 import { useColorLock } from './useColorLock'
 import { ColorLockDialog } from './ColorLockDialog'
-import { CustomAlert } from './CustomAlert'
 
 DefaultColorThemePalette.lightMode.red.solid = '#ec2d44'
 DefaultColorThemePalette.darkMode.red.solid = '#ec2d44'
@@ -65,17 +64,7 @@ function CustomQuickActions( {
     )
 }
 
-function CustomStylePanel( {
-                               myLockedColor,
-                               canUseColor,
-                               isColorLocked,
-                               lockedColors,
-                           }: {
-    myLockedColor: string | null
-    canUseColor: ( color: string ) => boolean
-    isColorLocked: ( color: string ) => boolean
-    lockedColors: Array<{ color: string; userId: string }>
-} ) {
+function CustomStylePanel() {
     return (
         <DefaultStylePanel>
             <DefaultStylePanelContent/>
@@ -91,20 +80,10 @@ export default function TldrawEditor() {
     const [showColorLockDialog, setShowColorLockDialog] = useState(false)
     const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
     const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
-    const [alertMessage, setAlertMessage] = useState<string | null>(null)
-    const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info')
     const editorRef = useRef<Editor | null>(null)
-    const setAlertRef = useRef<(( msg: string, type: 'info' | 'success' | 'error' ) => void) | null>(null)
-
-    useEffect(() => {
-        setAlertRef.current = ( msg: string, type: 'info' | 'success' | 'error' ) => {
-            setAlertType(type)
-            setAlertMessage(msg)
-        }
-    }, [])
 
     const colorLock = useColorLock(roomId, userId)
-    const {myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors} = colorLock
+    const {myLockedColor, lockColor, unlockColor, canUseColor, lockedColors} = colorLock
 
     const canUseColorRef = useRef(canUseColor)
     const lockedColorsRef = useRef(lockedColors)
@@ -191,7 +170,7 @@ export default function TldrawEditor() {
         setShowColorLockDialog(true)
     }
 
-    const handleColorLockConfirm = async ( color: string, password: string ) => {
+    const handleColorLockConfirm = async ( color: string, password: string, addToast: ReturnType<typeof useToasts>['addToast'] ) => {
         const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
 
         let result
@@ -202,12 +181,10 @@ export default function TldrawEditor() {
         }
 
         if (result.success) {
-            setAlertType('success')
-            setAlertMessage(result.message)
+            addToast({title: result.message, severity: 'success'})
             setShowColorLockDialog(false)
         } else {
-            setAlertType('error')
-            setAlertMessage(`Error: ${result.message}`)
+            addToast({title: `Error: ${result.message}`, severity: 'error'})
         }
     }
 
@@ -229,157 +206,135 @@ export default function TldrawEditor() {
         )
     }
 
-    const components: TLComponents = {
-        QuickActions: () => (
-            <CustomQuickActions
-                writeOwnOnly={writeOwnOnly}
-                onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
-                onColorLock={handleColorLockClick}
-            />
-        ),
-        StylePanel: () => (
-            <CustomStylePanel
-                myLockedColor={myLockedColor}
-                canUseColor={canUseColor}
-                isColorLocked={isColorLocked}
-                lockedColors={lockedColors}
-            />
-        ),
-    }
-
     return (
-        <>
-            <div style={{
-                position: 'fixed',
-                inset: 0,
-                touchAction: 'none',
-                overflow: 'hidden',
-                WebkitOverflowScrolling: 'auto',
-            }}>
-                <Tldraw
-                    store={store}
-                    deepLinks
-                    components={components}
-                    onMount={( editor ) => {
-                        editorRef.current = editor
-                        editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
-                        editor.setCurrentTool('draw')
+        <div style={{
+            position: 'fixed',
+            inset: 0,
+            touchAction: 'none',
+            overflow: 'hidden',
+            WebkitOverflowScrolling: 'auto',
+        }}>
+            <Tldraw
+                store={store}
+                deepLinks
+                components={{
+                    QuickActions: () => (
+                        <CustomQuickActions
+                            writeOwnOnly={writeOwnOnly}
+                            onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
+                            onColorLock={handleColorLockClick}
+                        />
+                    ),
+                    StylePanel: () => (
+                        <CustomStylePanel/>
+                    ),
+                    InFrontOfTheCanvas: () => {
+                        const {addToast} = useToasts()
 
-                        editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
-                            const currentUserId = editor.user.getId()
-
-                            return {
-                                ...shape,
-                                meta: {
-                                    ...shape.meta,
-                                    ownerId: currentUserId,
-                                },
+                        useEffect(() => {
+                            const handleShowToast = ( event: any ) => {
+                                const {title, severity} = event.detail
+                                addToast({title, severity})
                             }
-                        })
 
-                        editor.store.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
-                            const shapeColor = (shape as any).props?.color
-                            if (shapeColor && !canUseColorRef.current(shapeColor)) {
-                                console.log('Shape created with locked color, deleting immediately')
-                                editor.deleteShape(shape.id)
-                                if (setAlertRef.current) {
-                                    setAlertRef.current(
-                                        `Cannot draw with locked color "${shapeColor}". Please select an unlocked color.`,
-                                        'info',
-                                    )
-                                }
-                            }
-                        })
+                            window.addEventListener('show-toast', handleShowToast)
+                            return () => window.removeEventListener('show-toast', handleShowToast)
+                        }, [addToast])
 
-                        editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
-                            const currentUserId = editor.user.getId()
-                            if (writeOwnOnlyRef.current && prev.meta.ownerId !== currentUserId) {
+                        return showColorLockDialog ? (
+                            <ColorLockDialog
+                                color={selectedColorForLock}
+                                isLocking={colorLockMode === 'lock'}
+                                onConfirm={( color, password ) => handleColorLockConfirm(color, password, addToast)}
+                                onCancel={() => setShowColorLockDialog(false)}
+                                lockedColors={lockedColors}
+                            />
+                        ) : null
+                    },
+                }}
+                onMount={( editor ) => {
+                    editorRef.current = editor
+                    editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
+                    editor.setCurrentTool('draw')
+
+                    editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
+                        if (shape.meta.ownerId) return shape
+                        const currentUserId = editor.user.getId()
+                        return {
+                            ...shape,
+                            meta: {
+                                ...shape.meta,
+                                ownerId: currentUserId,
+                            },
+                        }
+                    })
+
+                    editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
+                        const currentUserId = editor.user.getId()
+                        if (writeOwnOnlyRef.current && prev.meta.ownerId !== currentUserId) {
+                            return prev
+                        }
+                        const prevColor = (prev as any).props?.color
+                        const nextColor = (next as any).props?.color
+
+                        if (nextColor && nextColor !== prevColor && !canUseColorRef.current(nextColor)) {
+                            console.log('Attempted color change to locked color, prevented')
+                            return prev
+                        }
+
+                        if (prevColor && !canUseColorRef.current(prevColor) && !(prev.meta.ownerId === currentUserId)) {
+                            console.log('Shape has locked color user does not own, preventing modification')
+                            return prev
+                        }
+
+                        return next
+                    })
+
+                    editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
+                        if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
+                        const shapes = editor.getCurrentPageShapes()
+                        next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
+                            const shape = shapes.find(( s ) => s.id === id)
+                            if (!shape) return false
+                            return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
+                        })
+                        return next
+                    })
+
+                    editor.sideEffects.registerBeforeChangeHandler('instance', ( prev, next ) => {
+                        const prevStyles = (prev as any).stylesForNextShape
+                        const nextStyles = (next as any).stylesForNextShape
+
+                        if (nextStyles && nextStyles['tldraw:color'] && prevStyles['tldraw:color'] !== nextStyles['tldraw:color']) {
+                            const newColor = nextStyles['tldraw:color']
+                            if (!canUseColorRef.current(newColor)) {
+                                console.log('Locked color selected in UI, reverting')
+                                setTimeout(() => {
+                                    const event = new CustomEvent('show-toast', {
+                                        detail: {
+                                            title: `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
+                                            severity: 'info',
+                                        },
+                                    })
+                                    window.dispatchEvent(event)
+                                }, 0)
                                 return prev
                             }
-                            const prevColor = (prev as any).props?.color
-                            const nextColor = (next as any).props?.color
+                        }
+                        return next
+                    })
 
-                            if (nextColor && nextColor !== prevColor && !canUseColorRef.current(nextColor)) {
-                                console.log('Attempted color change to locked color, prevented')
-                                return prev
-                            }
+                    editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
+                        const currentUserId = editor.user.getId()
+                        if (writeOwnOnlyRef.current && shape.meta.ownerId !== currentUserId) {
+                            return false
+                        }
+                        return
+                    })
 
-                            if (prevColor && !canUseColorRef.current(prevColor)) {
-                                console.log('Shape has locked color user does not own, preventing modification')
-                                return prev
-                            }
-
-                            return next
-                        })
-
-                        editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
-                            if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
-                            const shapes = editor.getCurrentPageShapes()
-                            next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
-                                const shape = shapes.find(( s ) => s.id === id)
-                                if (!shape) return false
-                                return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
-                            })
-                            return next
-                        })
-
-                        editor.sideEffects.registerBeforeChangeHandler('instance', ( prev, next ) => {
-                            const prevStyles = (prev as any).stylesForNextShape
-                            const nextStyles = (next as any).stylesForNextShape
-
-                            if (nextStyles && nextStyles.color && prevStyles?.color !== nextStyles.color) {
-                                const newColor = nextStyles.color
-                                if (!canUseColorRef.current(newColor)) {
-                                    console.log('Locked color selected in UI, reverting')
-                                    if (setAlertRef.current) {
-                                        setAlertRef.current(
-                                            `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
-                                            'info',
-                                        )
-                                    }
-                                    return prev
-                                }
-                            }
-
-                            return next
-                        })
-
-                        editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
-                            const currentUserId = editor.user.getId()
-
-                            if (writeOwnOnlyRef.current && shape.meta.ownerId !== currentUserId) {
-                                return false
-                            }
-
-                            const shapeColor = (shape as any).props?.color
-                            if (shapeColor && !canUseColorRef.current(shapeColor)) {
-                                console.log('Shape has locked color user does not own, preventing deletion')
-                                return false
-                            }
-
-                            return
-                        })
-
-                    }}
-                />
-            </div>
-            {showColorLockDialog && (
-                <ColorLockDialog
-                    color={selectedColorForLock}
-                    isLocking={colorLockMode === 'lock'}
-                    onConfirm={handleColorLockConfirm}
-                    onCancel={() => setShowColorLockDialog(false)}
-                    lockedColors={lockedColors}
-                />
-            )}
-            {alertMessage && (
-                <CustomAlert
-                    message={alertMessage}
-                    type={alertType}
-                    onClose={() => setAlertMessage(null)}
-                />
-            )}
-        </>
+                }}
+            />
+        </div>
     )
 }
 
