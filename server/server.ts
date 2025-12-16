@@ -53,21 +53,12 @@ app.register(async (app) => {
 	})
 
 	// To enable blob storage for assets, we add a simple endpoint supporting PUT and GET requests
-	app.put('/uploads/:id', {
-		// Allow raw body for file uploads
-		addContentTypeParser: {
-			parse: (_, payload, done) => {
-				let data = Buffer.alloc(0)
-				payload.on('data', (chunk) => {
-					data = Buffer.concat([data, chunk])
-				})
-				payload.on('end', () => done(null, data))
-			}
-		}
-	}, async (req, res) => {
+	app.addContentTypeParser('*', (_, payload, done) => done(null))
+	
+	app.put('/uploads/:id', async (req, res) => {
 		const id = (req.params as any).id as string
 		await storeAsset(id, req.raw)
-		res.send({ ok: true })
+		return { ok: true }
 	})
 	app.get('/uploads/:id', async (req, res) => {
 		const id = (req.params as any).id as string

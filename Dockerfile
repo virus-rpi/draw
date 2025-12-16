@@ -3,9 +3,6 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install build dependencies for better-sqlite3
-RUN apk add --no-cache python3 make g++
-
 # Copy server package files
 COPY server/package*.json ./
 

@@ -9,7 +9,7 @@ services:
     volumes:
       # Persist room data
       - ./data/rooms:/app/.rooms
-      # Persist assets (optional - use Vercel Blob instead)
+      # Persist assets
       - ./data/assets:/app/.assets
     environment:
       - PORT=5858

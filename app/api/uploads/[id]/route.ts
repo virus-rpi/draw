@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { put, head } from '@vercel/blob'
 
 // Sanitize asset ID to prevent path traversal attacks
 function sanitizeAssetId(id: string): string {
     return id.replace(/[^a-zA-Z0-9_.-]/g, '_')
 }
+
+// Proxy asset requests to Raspberry Pi backend
+const BACKEND_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL || 'http://localhost:5858'
 
 export async function PUT(
     request: NextRequest,
@@ -16,18 +18,22 @@ export async function PUT(
         
         // Get the raw body as ArrayBuffer
         const arrayBuffer = await request.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
         
-        // Upload to Vercel Blob with public access
-        const blob = await put(id, buffer, {
-            access: 'public',
-            addRandomSuffix: false, // Use exact filename
+        // Forward to Raspberry Pi backend
+        const response = await fetch(`${BACKEND_URL}/uploads/${id}`, {
+            method: 'PUT',
+            body: arrayBuffer,
+            headers: {
+                'Content-Type': request.headers.get('Content-Type') || 'application/octet-stream',
+            },
         })
         
-        return NextResponse.json({ 
-            ok: true,
-            url: blob.url 
-        })
+        if (!response.ok) {
+            throw new Error(`Backend upload failed: ${response.statusText}`)
+        }
+        
+        const data = await response.json()
+        return NextResponse.json(data)
     } catch (error) {
         console.error('Error storing asset:', error)
         return NextResponse.json(
@@ -45,18 +51,23 @@ export async function GET(
         const { id: rawId } = await params
         const id = sanitizeAssetId(rawId)
         
-        // Check if blob exists
-        const blobInfo = await head(`https://blob.vercel-storage.com/${id}`)
+        // Fetch from Raspberry Pi backend
+        const response = await fetch(`${BACKEND_URL}/uploads/${id}`)
         
-        if (!blobInfo) {
+        if (!response.ok) {
             return NextResponse.json(
                 { error: 'Asset not found' },
                 { status: 404 }
             )
         }
         
-        // Redirect to the Vercel Blob URL for direct access
-        return NextResponse.redirect(blobInfo.url)
+        const data = await response.arrayBuffer()
+        
+        return new NextResponse(data, {
+            headers: {
+                'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
+            },
+        })
     } catch (error) {
         console.error('Error loading asset:', error)
         return NextResponse.json(
