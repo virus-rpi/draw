@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Tldraw, AssetRecordType, getHashForString, TLAssetStore, TLBookmarkAsset, uniqueId } from 'tldraw'
+import { AssetRecordType, getHashForString, TLAssetStore, TLBookmarkAsset, Tldraw, uniqueId } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 
@@ -54,12 +54,11 @@ export default function TldrawEditor() {
     }, [roomId])
 
 
-    // Use custom sync server if specified, otherwise fall back to demo sync
     const SYNC_SERVER_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL?.trim()
     const USE_DEMO_SYNC = !SYNC_SERVER_URL
 
     const store = useSync({
-        uri: USE_DEMO_SYNC 
+        uri: USE_DEMO_SYNC
             ? `https://demo.tldraw.xyz/connect/${roomId}`
             : `${SYNC_SERVER_URL}/connect/${roomId}`,
         assets: multiplayerAssets,
@@ -78,8 +77,7 @@ export default function TldrawEditor() {
             <Tldraw
                 store={store}
                 deepLinks
-                onMount={(editor) => {
-                    // when the editor is ready, we need to register our bookmark unfurling service
+                onMount={( editor ) => {
                     editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
                 }}
             />
@@ -87,11 +85,8 @@ export default function TldrawEditor() {
     )
 }
 
-// How does our server handle assets like images and videos?
 const multiplayerAssets: TLAssetStore = {
-    // to upload an asset, we prefix it with a unique id, upload to Vercel Blob, and return the URL
-    async upload(_asset, file) {
-        // Use Next.js API route for assets (uploads to Vercel Blob)
+    async upload( _asset, file ) {
         const id = uniqueId()
         const objectName = `${id}-${file.name}`
         const url = `/api/uploads/${encodeURIComponent(objectName)}`
@@ -105,20 +100,15 @@ const multiplayerAssets: TLAssetStore = {
             throw new Error(`Failed to upload asset: ${response.statusText}`)
         }
 
-        // Get the blob URL from the response
         const data = await response.json()
-        return { src: data.url || url }
+        return {src: data.url || url}
     },
-    // to retrieve an asset, we can just use the same URL. you could customize this to add extra
-    // auth, or to serve optimized versions / sizes of the asset.
-    resolve(asset) {
+    resolve( asset ) {
         return asset.props.src
     },
 }
 
-// How does our server handle bookmark unfurling?
-async function unfurlBookmarkUrl({ url }: { url: string }): Promise<TLBookmarkAsset> {
-    // Use Next.js API route for unfurling (works on Vercel)
+async function unfurlBookmarkUrl( {url}: { url: string } ): Promise<TLBookmarkAsset> {
     const asset: TLBookmarkAsset = {
         id: AssetRecordType.createId(getHashForString(url)),
         typeName: 'asset',
