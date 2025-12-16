@@ -324,6 +324,14 @@ export default function TldrawEditor() {
                             console.log('Shape owned by another user, preventing deletion')
                             return false
                         }
+                        if ((shape as any).props?.color && !canUseColorRef.current((shape as any).props.color)) {
+                            console.log('Shape has locked color user does not own, preventing deletion')
+                            showToast(
+                                `This shape is using the locked color "${(shape as any).props.color}". You cannot delete it unless you lock it with the password.`,
+                                'info',
+                            )
+                            return false
+                        }
                         return
                     })
 
