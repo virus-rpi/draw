@@ -282,7 +282,7 @@ export default function TldrawEditor() {
                         editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
                             const currentUserId = editor.user.getId()
                             
-                            // Just add owner metadata - color validation happens in beforeChange handler
+                            // Just add owner metadata - color validation happens in afterCreate handler
                             return {
                                 ...shape,
                                 meta: {
@@ -293,9 +293,8 @@ export default function TldrawEditor() {
                         })
                         
                         // Register afterCreate handler to immediately remove shapes with locked colors
-                        editor.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
+                        editor.store.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
                             const shapeColor = (shape as any).props?.color
-                            const currentUserId = editor.user.getId()
                             
                             // If shape was created with a locked color, delete it immediately
                             if (shapeColor && !canUseColorRef.current(shapeColor)) {
