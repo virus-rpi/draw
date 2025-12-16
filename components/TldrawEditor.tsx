@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
     AssetRecordType,
+    DefaultColorThemePalette,
     DefaultQuickActions,
     DefaultQuickActionsContent,
+    DefaultStylePanel,
+    DefaultStylePanelContent,
+    Editor,
     getHashForString,
     TLAssetStore,
     TLBookmarkAsset,
@@ -15,6 +19,12 @@ import {
 } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
+import { useColorLock } from './useColorLock'
+import { ColorLockDialog } from './ColorLockDialog'
+import { CustomAlert } from './CustomAlert'
+
+DefaultColorThemePalette.lightMode.red.solid = '#ec2d44'
+DefaultColorThemePalette.darkMode.red.solid = '#ec2d44'
 
 function generateUUID(): string {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -28,7 +38,15 @@ function generateUUID(): string {
 }
 
 
-function CustomQuickActions( {writeOwnOnly, onToggle}: { writeOwnOnly: boolean; onToggle: () => void } ) {
+function CustomQuickActions( {
+                                 writeOwnOnly,
+                                 onToggle,
+                                 onColorLock,
+                             }: {
+    writeOwnOnly: boolean
+    onToggle: () => void
+    onColorLock: () => void
+} ) {
     return (
         <DefaultQuickActions>
             <DefaultQuickActionsContent/>
@@ -37,18 +55,79 @@ function CustomQuickActions( {writeOwnOnly, onToggle}: { writeOwnOnly: boolean; 
                 icon={writeOwnOnly ? 'lock' : 'unlock'}
                 onSelect={onToggle}
             />
+            <TldrawUiMenuItem
+                id="color-lock"
+                icon="color"
+                onSelect={onColorLock}
+                label="Lock/Unlock Color"
+            />
         </DefaultQuickActions>
+    )
+}
+
+function CustomStylePanel( {
+                               myLockedColor,
+                               canUseColor,
+                               isColorLocked,
+                               lockedColors,
+                           }: {
+    myLockedColor: string | null
+    canUseColor: ( color: string ) => boolean
+    isColorLocked: ( color: string ) => boolean
+    lockedColors: Array<{ color: string; userId: string }>
+} ) {
+    return (
+        <DefaultStylePanel>
+            <DefaultStylePanelContent/>
+        </DefaultStylePanel>
     )
 }
 
 export default function TldrawEditor() {
     const [roomId, setRoomId] = useState<string>('')
+    const [userId, setUserId] = useState<string>('')
     const [writeOwnOnly, setWriteOwnOnly] = useState<boolean>(true)
     const writeOwnOnlyRef = useRef<boolean>(writeOwnOnly)
+    const [showColorLockDialog, setShowColorLockDialog] = useState(false)
+    const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
+    const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
+    const [alertMessage, setAlertMessage] = useState<string | null>(null)
+    const [alertType, setAlertType] = useState<'info' | 'success' | 'error'>('info')
+    const editorRef = useRef<Editor | null>(null)
+    const setAlertRef = useRef<(( msg: string, type: 'info' | 'success' | 'error' ) => void) | null>(null)
+
+    useEffect(() => {
+        setAlertRef.current = ( msg: string, type: 'info' | 'success' | 'error' ) => {
+            setAlertType(type)
+            setAlertMessage(msg)
+        }
+    }, [])
+
+    const colorLock = useColorLock(roomId, userId)
+    const {myLockedColor, lockColor, unlockColor, canUseColor, isColorLocked, lockedColors} = colorLock
+
+    const canUseColorRef = useRef(canUseColor)
+    const lockedColorsRef = useRef(lockedColors)
+    const userIdRef = useRef(userId)
 
     useEffect(() => {
         writeOwnOnlyRef.current = writeOwnOnly
     }, [writeOwnOnly])
+
+    useEffect(() => {
+        canUseColorRef.current = canUseColor
+        lockedColorsRef.current = lockedColors
+        userIdRef.current = userId
+    }, [canUseColor, lockedColors, userId])
+
+    useEffect(() => {
+        let storedUserId = localStorage.getItem('draw-user-id')
+        if (!storedUserId) {
+            storedUserId = generateUUID()
+            localStorage.setItem('draw-user-id', storedUserId)
+        }
+        setUserId(storedUserId)
+    }, [])
 
     useEffect(() => {
         const params = new URLSearchParams(window.location.search)
@@ -92,9 +171,54 @@ export default function TldrawEditor() {
         return `ws://localhost:5858/connect/${roomId}`
     }
 
+    const handleColorLockClick = () => {
+        const editor = editorRef.current
+        if (!editor) return
+
+        let currentColor = 'black'
+
+        const selectedShapes = editor.getSelectedShapes()
+        if (selectedShapes.length > 0) {
+            const firstShape = selectedShapes[0] as any
+            if (firstShape?.props?.color) {
+                currentColor = firstShape.props.color
+            }
+        }
+
+        setColorLockMode('lock')
+
+        setSelectedColorForLock(currentColor)
+        setShowColorLockDialog(true)
+    }
+
+    const handleColorLockConfirm = async ( color: string, password: string ) => {
+        const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
+
+        let result
+        if (myLock) {
+            result = await unlockColor(color, password)
+        } else {
+            result = await lockColor(color, password)
+        }
+
+        if (result.success) {
+            setAlertType('success')
+            setAlertMessage(result.message)
+            setShowColorLockDialog(false)
+        } else {
+            setAlertType('error')
+            setAlertMessage(`Error: ${result.message}`)
+        }
+    }
+
     const store = useSync({
         uri: getSyncUrl(),
         assets: multiplayerAssets,
+        userInfo: userId ? {
+            id: userId,
+            name: `User ${userId.slice(0, 8)}`,
+            ...(myLockedColor ? {color: myLockedColor} : {}),
+        } : undefined,
     })
 
     if (!roomId) {
@@ -110,67 +234,152 @@ export default function TldrawEditor() {
             <CustomQuickActions
                 writeOwnOnly={writeOwnOnly}
                 onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
+                onColorLock={handleColorLockClick}
+            />
+        ),
+        StylePanel: () => (
+            <CustomStylePanel
+                myLockedColor={myLockedColor}
+                canUseColor={canUseColor}
+                isColorLocked={isColorLocked}
+                lockedColors={lockedColors}
             />
         ),
     }
 
     return (
-        <div style={{
-            position: 'fixed',
-            inset: 0,
-            touchAction: 'none',
-            overflow: 'hidden',
-            WebkitOverflowScrolling: 'auto',
-        }}>
-            <Tldraw
-                store={store}
-                deepLinks
-                components={components}
-                onMount={( editor ) => {
-                    editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
-                    editor.setCurrentTool('draw')
+        <>
+            <div style={{
+                position: 'fixed',
+                inset: 0,
+                touchAction: 'none',
+                overflow: 'hidden',
+                WebkitOverflowScrolling: 'auto',
+            }}>
+                <Tldraw
+                    store={store}
+                    deepLinks
+                    components={components}
+                    onMount={( editor ) => {
+                        editorRef.current = editor
+                        editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
+                        editor.setCurrentTool('draw')
 
-                    editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
-                        console.log('shape created', shape)
-                        console.log('current user id', editor.user.getId())
-                        console.log('writeOwnOnly', writeOwnOnlyRef.current)
-                        return {
-                            ...shape,
-                            meta: {
-                                ...shape.meta,
-                                ownerId: editor.user.getId(),
-                            },
-                        }
-                    })
+                        editor.store.sideEffects.registerBeforeCreateHandler('shape', ( shape ) => {
+                            const currentUserId = editor.user.getId()
 
-                    editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
-                        if (writeOwnOnlyRef.current && prev.meta.ownerId !== editor.user.getId()) {
-                            return prev
-                        }
-                        return next
-                    })
-
-                    editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
-                        if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
-                        const shapes = editor.getCurrentPageShapes()
-                        next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
-                            const shape = shapes.find(( s ) => s.id === id)
-                            if (!shape) return false
-                            return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
+                            return {
+                                ...shape,
+                                meta: {
+                                    ...shape.meta,
+                                    ownerId: currentUserId,
+                                },
+                            }
                         })
-                        return next
-                    })
 
-                    editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
-                        if (writeOwnOnlyRef.current && shape.meta.ownerId !== editor.user.getId()) {
-                            return false
-                        }
-                        return
-                    })
+                        editor.store.sideEffects.registerAfterCreateHandler('shape', ( shape ) => {
+                            const shapeColor = (shape as any).props?.color
+                            if (shapeColor && !canUseColorRef.current(shapeColor)) {
+                                console.log('Shape created with locked color, deleting immediately')
+                                editor.deleteShape(shape.id)
+                                if (setAlertRef.current) {
+                                    setAlertRef.current(
+                                        `Cannot draw with locked color "${shapeColor}". Please select an unlocked color.`,
+                                        'info',
+                                    )
+                                }
+                            }
+                        })
 
-                }}
-            />
-        </div>
+                        editor.sideEffects.registerBeforeChangeHandler('shape', ( prev, next ) => {
+                            const currentUserId = editor.user.getId()
+                            if (writeOwnOnlyRef.current && prev.meta.ownerId !== currentUserId) {
+                                return prev
+                            }
+                            const prevColor = (prev as any).props?.color
+                            const nextColor = (next as any).props?.color
+
+                            if (nextColor && nextColor !== prevColor && !canUseColorRef.current(nextColor)) {
+                                console.log('Attempted color change to locked color, prevented')
+                                return prev
+                            }
+
+                            if (prevColor && !canUseColorRef.current(prevColor)) {
+                                console.log('Shape has locked color user does not own, preventing modification')
+                                return prev
+                            }
+
+                            return next
+                        })
+
+                        editor.sideEffects.registerBeforeChangeHandler('instance_page_state', ( prev, next ) => {
+                            if (!writeOwnOnlyRef.current || next.selectedShapeIds.length === 0) return next
+                            const shapes = editor.getCurrentPageShapes()
+                            next.selectedShapeIds = next.selectedShapeIds.filter(( id ) => {
+                                const shape = shapes.find(( s ) => s.id === id)
+                                if (!shape) return false
+                                return !(shape.meta.ownerId !== editor.user.getId() && writeOwnOnlyRef.current)
+                            })
+                            return next
+                        })
+
+                        editor.sideEffects.registerBeforeChangeHandler('instance', ( prev, next ) => {
+                            const prevStyles = (prev as any).stylesForNextShape
+                            const nextStyles = (next as any).stylesForNextShape
+
+                            if (nextStyles && nextStyles.color && prevStyles?.color !== nextStyles.color) {
+                                const newColor = nextStyles.color
+                                if (!canUseColorRef.current(newColor)) {
+                                    console.log('Locked color selected in UI, reverting')
+                                    if (setAlertRef.current) {
+                                        setAlertRef.current(
+                                            `The color "${newColor}" is locked. Use Lock/Unlock Color to take it over with the password.`,
+                                            'info',
+                                        )
+                                    }
+                                    return prev
+                                }
+                            }
+
+                            return next
+                        })
+
+                        editor.sideEffects.registerBeforeDeleteHandler('shape', ( shape ) => {
+                            const currentUserId = editor.user.getId()
+
+                            if (writeOwnOnlyRef.current && shape.meta.ownerId !== currentUserId) {
+                                return false
+                            }
+
+                            const shapeColor = (shape as any).props?.color
+                            if (shapeColor && !canUseColorRef.current(shapeColor)) {
+                                console.log('Shape has locked color user does not own, preventing deletion')
+                                return false
+                            }
+
+                            return
+                        })
+
+                    }}
+                />
+            </div>
+            {showColorLockDialog && (
+                <ColorLockDialog
+                    color={selectedColorForLock}
+                    isLocking={colorLockMode === 'lock'}
+                    onConfirm={handleColorLockConfirm}
+                    onCancel={() => setShowColorLockDialog(false)}
+                    lockedColors={lockedColors}
+                />
+            )}
+            {alertMessage && (
+                <CustomAlert
+                    message={alertMessage}
+                    type={alertType}
+                    onClose={() => setAlertMessage(null)}
+                />
+            )}
+        </>
     )
 }
 
