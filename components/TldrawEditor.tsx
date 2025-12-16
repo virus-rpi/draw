@@ -87,6 +87,7 @@ export default function TldrawEditor() {
                 deepLinks
                 onMount={( editor ) => {
                     editor.registerExternalAssetHandler('url', unfurlBookmarkUrl)
+                    editor.setCurrentTool('draw')
                 }}
             />
         </div>
