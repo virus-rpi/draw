@@ -1,25 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Sanitize asset ID to prevent path traversal attacks
-function sanitizeAssetId(id: string): string {
+function sanitizeAssetId( id: string ): string {
     return id.replace(/[^a-zA-Z0-9_.-]/g, '_')
 }
 
-// Proxy asset requests to Raspberry Pi backend
 const BACKEND_URL = process.env.NEXT_PUBLIC_SYNC_SERVER_URL || 'http://localhost:5858'
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    {params}: { params: Promise<{ id: string }> },
 ) {
     try {
-        const { id: rawId } = await params
+        const {id: rawId} = await params
         const id = sanitizeAssetId(rawId)
-        
-        // Get the raw body as ArrayBuffer
         const arrayBuffer = await request.arrayBuffer()
-        
-        // Forward to Raspberry Pi backend
         const response = await fetch(`${BACKEND_URL}/uploads/${id}`, {
             method: 'PUT',
             body: arrayBuffer,
@@ -27,42 +21,40 @@ export async function PUT(
                 'Content-Type': request.headers.get('Content-Type') || 'application/octet-stream',
             },
         })
-        
+
         if (!response.ok) {
             throw new Error(`Backend upload failed: ${response.statusText}`)
         }
-        
+
         const data = await response.json()
         return NextResponse.json(data)
     } catch (error) {
         console.error('Error storing asset:', error)
         return NextResponse.json(
-            { error: 'Failed to store asset' },
-            { status: 500 }
+            {error: 'Failed to store asset'},
+            {status: 500},
         )
     }
 }
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
+    {params}: { params: Promise<{ id: string }> },
 ) {
     try {
-        const { id: rawId } = await params
+        const {id: rawId} = await params
         const id = sanitizeAssetId(rawId)
-        
-        // Fetch from Raspberry Pi backend
         const response = await fetch(`${BACKEND_URL}/uploads/${id}`)
-        
+
         if (!response.ok) {
             return NextResponse.json(
-                { error: 'Asset not found' },
-                { status: 404 }
+                {error: 'Asset not found'},
+                {status: 404},
             )
         }
-        
+
         const data = await response.arrayBuffer()
-        
+
         return new NextResponse(data, {
             headers: {
                 'Content-Type': response.headers.get('Content-Type') || 'application/octet-stream',
@@ -71,8 +63,8 @@ export async function GET(
     } catch (error) {
         console.error('Error loading asset:', error)
         return NextResponse.json(
-            { error: 'Asset not found' },
-            { status: 404 }
+            {error: 'Asset not found'},
+            {status: 404},
         )
     }
 }

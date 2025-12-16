@@ -54,14 +54,10 @@ export default function TldrawEditor() {
     }, [roomId])
 
 
-    // Connect to Raspberry Pi sync server
     const getSyncUrl = () => {
-        // Raspberry Pi sync server URL via Cloudflare Tunnel
         if (process.env.NEXT_PUBLIC_SYNC_SERVER_URL) {
             return `${process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/connect/${roomId}`
         }
-        
-        // Fallback for local development
         return `ws://localhost:5858/connect/${roomId}`
     }
 
