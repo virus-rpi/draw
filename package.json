@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tldraw/sync": "^4.2.1",
+    "@vercel/analytics": "^1.6.1",
     "next": "^16.0.10",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

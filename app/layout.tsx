@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import React from 'react'
+import { Analytics } from '@vercel/analytics/next'
 
 export const metadata: Metadata = {
     title: 'Draw',
@@ -22,6 +23,7 @@ export default function RootLayout( {
 }> ) {
     return (
         <html lang="en">
+        <Analytics/>
         <body className="antialiased">{children}</body>
         </html>
     )
