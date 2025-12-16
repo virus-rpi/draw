@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
     AssetRecordType,
+    DEFAULT_EMBED_DEFINITIONS,
     DefaultColorThemePalette,
+    DefaultEmbedDefinitionType,
     DefaultQuickActions,
     DefaultQuickActionsContent,
     DefaultStylePanel,
@@ -121,6 +123,14 @@ export default function TldrawEditor() {
         setRoomId(room)
     }, [])
 
+    const embeds = useMemo(() => {
+        const defaultEmbedTypesToKeep: DefaultEmbedDefinitionType[] = ['spotify', 'youtube']
+        const defaultEmbedsToKeep = DEFAULT_EMBED_DEFINITIONS.filter(( embed ) =>
+            defaultEmbedTypesToKeep.includes(embed.type),
+        )
+        return [...defaultEmbedsToKeep]
+    }, [])
+
     const getSyncUrl = () => {
         if (process.env.NEXT_PUBLIC_SYNC_SERVER_URL) {
             return `${process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/connect/${roomId}`
@@ -195,6 +205,7 @@ export default function TldrawEditor() {
             <Tldraw
                 store={store}
                 deepLinks
+                embeds={embeds}
                 components={{
                     QuickActions: () => (
                         <CustomQuickActions
