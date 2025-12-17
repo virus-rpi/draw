@@ -59,9 +59,19 @@ export function useColorLock( roomId: string, userId: string ) {
             try {
                 const data = JSON.parse(event.data)
                 if (data.type === 'color-lock-update') {
-                    setLockedColors(data.locks || [])
-                    const myLock = data.locks?.find(( lock: LockedColor ) => lock.userId === userId)
-                    setMyLockedColor(myLock?.color || null)
+                    const newLocks: LockedColor[] = data.locks || []
+                    const serialized = JSON.stringify(newLocks)
+
+                    setLockedColors(prev => {
+                        if (JSON.stringify(prev) === serialized) return prev
+                        return newLocks
+                    })
+
+                    const myLock = newLocks.find(( lock: LockedColor ) => lock.userId === userId)
+                    setMyLockedColor(prev => {
+                        const newColor = myLock?.color || null
+                        return prev === newColor ? prev : newColor
+                    })
                 }
             } catch (error) {
                 console.error('Failed to parse WebSocket message:', error)
