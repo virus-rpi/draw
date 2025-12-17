@@ -15,6 +15,10 @@ Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docke
 - 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
 - 🏠 **Self-hosted backend** - Your data on your hardware
 
+## Contributing
+
+This project uses a two-branch development strategy with automated releases.
+
 ## Getting Started
 
 ### Prerequisites

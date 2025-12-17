@@ -1,0 +1,73 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          target-branch: dev
+      
+      # When release PR is merged, create PR from dev to main
+      - name: Create PR to main
+        if: ${{ steps.release.outputs.release_created }}
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tagName = process.env.TAG_NAME;
+            
+            try {
+              // Check if PR from dev to main already exists
+              const { data: existingPRs } = await github.rest.pulls.list({
+                owner,
+                repo,
+                head: 'dev',
+                base: 'main',
+                state: 'open'
+              });
+              
+              if (existingPRs.length > 0) {
+                console.log(`PR from dev to main already exists: #${existingPRs[0].number}`);
+                return;
+              }
+              
+              // Create PR from dev to main
+              const prBody = [
+                'Automated release PR created after merging release-please.',
+                '',
+                `Release: ${tagName}`,
+                '',
+                'Merging this PR will deploy the release to production.'
+              ].join('\n');
+              
+              const { data: pr } = await github.rest.pulls.create({
+                owner,
+                repo,
+                title: `Release ${tagName} to Production`,
+                head: 'dev',
+                base: 'main',
+                body: prBody
+              });
+              
+              console.log(`Created PR #${pr.number}: ${pr.html_url}`);
+            } catch (error) {
+              if (error.status === 422) {
+                console.log('Unable to create PR - branches may be in sync or no commits between them');
+              } else {
+                console.error('Error:', error.message);
+                throw error;
+              }
+            }
