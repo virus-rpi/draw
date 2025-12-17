@@ -58,51 +58,55 @@ export function ColorLockDialog( {color, isLocking, onConfirm, onClose, lockedCo
                 <p style={{margin: '0 0 16px 0', fontSize: '14px', color: '#666'}}>
                     Enter the password to lock or take over a color. Use the same password to unlock it later.
                 </p>
-                <form onSubmit={handleSubmit}>
-                    <div style={{marginBottom: '16px'}}>
-                        <label style={{display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500}}>
-                            Select color:
-                        </label>
-                        <select
-                            value={selectedColor}
-                            onChange={( e ) => setSelectedColor(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '8px',
-                                border: '1px solid var(--color-panel)',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                boxSizing: 'border-box',
-                                backgroundColor: 'var(--color-panel)',
-                                color: 'var(--color-text)',
-                            }}
-                        >
-                            {PRESET_COLORS.map(( c ) => (
-                                <option key={c.value} value={c.value}>
-                                    {c.label} {isColorLocked(c.value) ? '🔒' : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={( e ) => setPassword(e.target.value)}
-                        placeholder="Enter password"
+                <div style={{marginBottom: '16px'}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500}}>
+                        Select color:
+                    </label>
+                    <select
+                        value={selectedColor}
+                        onChange={( e ) => setSelectedColor(e.target.value)}
                         style={{
                             width: '100%',
                             padding: '8px',
                             border: '1px solid var(--color-panel)',
                             borderRadius: '4px',
                             fontSize: '14px',
-                            marginBottom: '16px',
                             boxSizing: 'border-box',
                             backgroundColor: 'var(--color-panel)',
                             color: 'var(--color-text)',
                         }}
-                        autoFocus
-                    />
-                </form>
+                    >
+                        {PRESET_COLORS.map(( c ) => (
+                            <option key={c.value} value={c.value}>
+                                {c.label} {isColorLocked(c.value) ? '🔒' : ''}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <input
+                    type="password"
+                    value={password}
+                    onChange={( e ) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    onKeyDown={( e ) => {
+                        if (e.key === 'Enter' && password && selectedColor) {
+                            e.preventDefault()
+                            handleSubmit(e as any)
+                        }
+                    }}
+                    style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--color-panel)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        marginBottom: '16px',
+                        boxSizing: 'border-box',
+                        backgroundColor: 'var(--color-panel)',
+                        color: 'var(--color-text)',
+                    }}
+                    autoFocus
+                />
             </TldrawUiDialogBody>
             <TldrawUiDialogFooter className="tlui-dialog__footer__actions">
                 <TldrawUiButton type="normal" onClick={onClose}>
