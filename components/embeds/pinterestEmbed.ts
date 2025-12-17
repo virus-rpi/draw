@@ -25,7 +25,7 @@ export const customPinterestEmbed: CustomEmbedDefinition = {
             return undefined
         }
 
-        if (urlObj.hostname.includes('pinimg.com')) {
+        if (urlObj.hostname === 'pinimg.com' || urlObj.hostname === 'i.pinimg.com') {
             return url
         }
 
@@ -39,7 +39,7 @@ export const customPinterestEmbed: CustomEmbedDefinition = {
     fromEmbedUrl: ( url ) => {
         const urlObj = new URL(url)
 
-        if (urlObj.hostname.includes('pinimg.com')) {
+        if (urlObj.hostname === 'pinimg.com' || urlObj.hostname === 'i.pinimg.com') {
             return url
         }
 
