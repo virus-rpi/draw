@@ -17,8 +17,8 @@ export function useCollaboratorNotifications({
     useEffect(() => {
         if (!editor) return
 
-        // Check for changes in collaborators periodically
-        const checkInterval = setInterval(() => {
+        // Use store listener for presence changes instead of polling
+        const checkCollaborators = () => {
             const currentCollaborators = editor.getCollaborators()
             const currentMap = new Map<string, TLInstancePresence>()
             
@@ -43,8 +43,22 @@ export function useCollaboratorNotifications({
             })
 
             prevCollaboratorsRef.current = currentMap
-        }, 1000) // Check every second
+        }
 
-        return () => clearInterval(checkInterval)
+        // Listen to presence changes via the store
+        const unsubscribe = editor.store.listen(() => {
+            // Only check when presence records change
+            checkCollaborators()
+        }, {
+            scope: 'presence',
+            source: 'remote'
+        })
+
+        // Initial check
+        checkCollaborators()
+
+        return () => {
+            unsubscribe()
+        }
     }, [editor, onJoin, onLeave])
 }
