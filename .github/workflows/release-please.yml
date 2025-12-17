@@ -18,7 +18,6 @@ jobs:
         with:
           # Monitor dev branch and create release PRs with version bumps
           target-branch: dev
-          release-type: node
       
       # After release PR is merged to dev, create a PR to merge dev into main
       - name: Sync dev to main
@@ -28,8 +27,8 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const tagName = '${{ steps.release.outputs.tag_name }}';
-            const releaseNotes = `${{ steps.release.outputs.body }}`;
+            const tagName = process.env.TAG_NAME;
+            const releaseNotes = process.env.RELEASE_NOTES;
             
             try {
               // Check if a PR from dev to main already exists
@@ -46,6 +45,25 @@ jobs:
                 return;
               }
               
+              // Build PR body with safe string handling
+              const prBody = [
+                `## Release ${tagName} to Production`,
+                '',
+                'This PR promotes the latest release from `dev` to `main` (production).',
+                '',
+                '### Release Notes',
+                '',
+                releaseNotes,
+                '',
+                '---',
+                '',
+                '**After merging this PR:**',
+                '- Changes will be deployed to production',
+                `- The \`main\` branch will be tagged with \`${tagName}\``,
+                '',
+                'Please review the changes carefully before merging.'
+              ].join('\n');
+              
               // Create new PR from dev to main
               const { data: pr } = await github.rest.pulls.create({
                 owner,
@@ -53,22 +71,21 @@ jobs:
                 title: `🚀 Release ${tagName} to Production`,
                 head: 'dev',
                 base: 'main',
-                body: `## Release ${tagName} to Production\n\n` +
-                      `This PR promotes the latest release from \`dev\` to \`main\` (production).\n\n` +
-                      `### Release Notes\n\n${releaseNotes}\n\n` +
-                      `---\n\n` +
-                      `**After merging this PR:**\n` +
-                      `- Changes will be deployed to production\n` +
-                      `- The \`main\` branch will be tagged with \`${tagName}\`\n\n` +
-                      `Please review the changes carefully before merging.`
+                body: prBody
               });
               
               console.log(`✅ Created PR #${pr.number}: ${pr.html_url}`);
             } catch (error) {
-              if (error.message.includes('No commits between')) {
-                console.log('dev and main are already in sync');
+              // Check for specific error status codes
+              if (error.status === 422 && error.message.includes('No commits')) {
+                console.log('dev and main are already in sync - no commits to merge');
+              } else if (error.status === 422) {
+                console.log('Cannot create PR - possibly already exists or branches are identical');
               } else {
                 console.error('Error creating PR:', error.message);
                 throw error;
               }
             }
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+          RELEASE_NOTES: ${{ steps.release.outputs.body }}
