@@ -44,3 +44,5 @@ next-env.d.ts
 /.rooms
 /.assets
 /data
+/server/.rooms/*.json
+/server/.assets
