@@ -15,6 +15,16 @@ Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docke
 - 🔖 **Bookmark unfurling** - Automatic preview generation for URLs
 - 🏠 **Self-hosted backend** - Your data on your hardware
 
+## Contributing
+
+This project uses a two-branch development strategy with automated releases. See [.github/BRANCHING_STRATEGY.md](./.github/BRANCHING_STRATEGY.md) for details.
+
+**Quick Start:**
+- Create feature branches from `dev`
+- All PRs should target `dev`
+- Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
+- Release Please automatically creates release PRs from `dev` to `main`
+
 ## Getting Started
 
 ### Prerequisites
