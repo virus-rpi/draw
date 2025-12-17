@@ -1,10 +1,19 @@
 import React, { useState } from 'react'
+import {
+    TldrawUiButton,
+    TldrawUiButtonLabel,
+    TldrawUiDialogBody,
+    TldrawUiDialogCloseButton,
+    TldrawUiDialogFooter,
+    TldrawUiDialogHeader,
+    TldrawUiDialogTitle,
+} from 'tldraw'
 
 interface ColorLockDialogProps {
     color: string
     isLocking: boolean
     onConfirm: ( color: string, password: string ) => void
-    onCancel: () => void
+    onClose: () => void
     lockedColors?: Array<{ color: string; userId: string }>
 }
 
@@ -23,7 +32,7 @@ const PRESET_COLORS = [
     {name: 'red', label: 'Finn Red', value: 'red'},
 ]
 
-export function ColorLockDialog( {color, isLocking, onConfirm, onCancel, lockedColors = []}: ColorLockDialogProps ) {
+export function ColorLockDialog( {color, isLocking, onConfirm, onClose, lockedColors = []}: ColorLockDialogProps ) {
     const [password, setPassword] = useState('')
     const [selectedColor, setSelectedColor] = useState(color)
 
@@ -40,111 +49,79 @@ export function ColorLockDialog( {color, isLocking, onConfirm, onCancel, lockedC
     }
 
     return (
-        <div
-            style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(0, 0, 0, 0.5)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 10000,
-            }}
-            onClick={onCancel}
-        >
-            <div
-                style={{
-                    backgroundColor: 'white',
-                    borderRadius: '8px',
-                    padding: '24px',
-                    minWidth: '350px',
-                    maxWidth: '400px',
-                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-                }}
-                onClick={( e ) => e.stopPropagation()}
-            >
-                <h2 style={{margin: '0 0 16px 0', fontSize: '18px', fontWeight: 600}}>
-                    Lock / Unlock / Take Over Color
-                </h2>
+        <>
+            <TldrawUiDialogHeader>
+                <TldrawUiDialogTitle>Lock / Unlock / Take Over Color</TldrawUiDialogTitle>
+                <TldrawUiDialogCloseButton />
+            </TldrawUiDialogHeader>
+            <TldrawUiDialogBody style={{maxWidth: '400px'}}>
                 <p style={{margin: '0 0 16px 0', fontSize: '14px', color: '#666'}}>
                     Enter the password to lock or take over a color. Use the same password to unlock it later.
                 </p>
-                <form onSubmit={handleSubmit}>
-                    <div style={{marginBottom: '16px'}}>
-                        <label style={{display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500}}>
-                            Select color:
-                        </label>
-                        <select
-                            value={selectedColor}
-                            onChange={( e ) => setSelectedColor(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '8px',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                fontSize: '14px',
-                                boxSizing: 'border-box',
-                            }}
-                        >
-                            {PRESET_COLORS.map(( c ) => (
-                                <option key={c.value} value={c.value}>
-                                    {c.label} {isColorLocked(c.value) ? '🔒' : ''}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={( e ) => setPassword(e.target.value)}
-                        placeholder="Enter password"
+                <div style={{marginBottom: '16px'}}>
+                    <label style={{display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500}}>
+                        Select color:
+                    </label>
+                    <select
+                        value={selectedColor}
+                        onChange={( e ) => setSelectedColor(e.target.value)}
                         style={{
                             width: '100%',
                             padding: '8px',
-                            border: '1px solid #ccc',
+                            border: '1px solid var(--color-panel)',
                             borderRadius: '4px',
                             fontSize: '14px',
-                            marginBottom: '16px',
                             boxSizing: 'border-box',
+                            backgroundColor: 'var(--color-panel)',
+                            color: 'var(--color-text)',
                         }}
-                        autoFocus
-                    />
-                    <div style={{display: 'flex', gap: '8px', justifyContent: 'flex-end'}}>
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            style={{
-                                padding: '8px 16px',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                backgroundColor: 'white',
-                                cursor: 'pointer',
-                                fontSize: '14px',
-                            }}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={!password || !selectedColor}
-                            style={{
-                                padding: '8px 16px',
-                                border: 'none',
-                                borderRadius: '4px',
-                                backgroundColor: (password && selectedColor) ? '#007bff' : '#ccc',
-                                color: 'white',
-                                cursor: (password && selectedColor) ? 'pointer' : 'not-allowed',
-                                fontSize: '14px',
-                            }}
-                        >
-                            {isColorLocked(selectedColor) ? 'Unlock / Take Over' : 'Lock'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+                    >
+                        {PRESET_COLORS.map(( c ) => (
+                            <option key={c.value} value={c.value}>
+                                {c.label} {isColorLocked(c.value) ? '🔒' : ''}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                <input
+                    type="password"
+                    value={password}
+                    onChange={( e ) => setPassword(e.target.value)}
+                    placeholder="Enter password"
+                    onKeyDown={( e ) => {
+                        if (e.key === 'Enter' && password && selectedColor) {
+                            e.preventDefault()
+                            handleSubmit(e as any)
+                        }
+                    }}
+                    style={{
+                        width: '100%',
+                        padding: '8px',
+                        border: '1px solid var(--color-panel)',
+                        borderRadius: '4px',
+                        fontSize: '14px',
+                        marginBottom: '16px',
+                        boxSizing: 'border-box',
+                        backgroundColor: 'var(--color-panel)',
+                        color: 'var(--color-text)',
+                    }}
+                    autoFocus
+                />
+            </TldrawUiDialogBody>
+            <TldrawUiDialogFooter className="tlui-dialog__footer__actions">
+                <TldrawUiButton type="normal" onClick={onClose}>
+                    <TldrawUiButtonLabel>Cancel</TldrawUiButtonLabel>
+                </TldrawUiButton>
+                <TldrawUiButton 
+                    type="primary" 
+                    disabled={!password || !selectedColor}
+                    onClick={handleSubmit}
+                >
+                    <TldrawUiButtonLabel>
+                        {isColorLocked(selectedColor) ? 'Unlock / Take Over' : 'Lock'}
+                    </TldrawUiButtonLabel>
+                </TldrawUiButton>
+            </TldrawUiDialogFooter>
+        </>
     )
 }
