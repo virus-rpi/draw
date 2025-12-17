@@ -26,6 +26,7 @@ export default function RootLayout( {
         <html lang="en">
         <head>
             <link rel="preconnect" href={process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/>
+            <link rel="dns-prefetch" href={process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/>
         </head>
         <Analytics/>
         <SpeedInsights/>
