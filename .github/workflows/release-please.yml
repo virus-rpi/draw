@@ -22,9 +22,12 @@ jobs:
       - name: Create PR to main
         if: ${{ steps.release.outputs.release_created }}
         uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
         with:
           script: |
             const { owner, repo } = context.repo;
+            const tagName = process.env.TAG_NAME;
             
             try {
               // Check if PR from dev to main already exists
@@ -45,10 +48,10 @@ jobs:
               const { data: pr } = await github.rest.pulls.create({
                 owner,
                 repo,
-                title: `Release ${{ steps.release.outputs.tag_name }} to Production`,
+                title: `Release ${tagName} to Production`,
                 head: 'dev',
                 base: 'main',
-                body: `Automated release PR created after merging release-please.\n\nRelease: ${{ steps.release.outputs.tag_name }}\n\nMerging this PR will deploy the release to production.`
+                body: `Automated release PR created after merging release-please.\n\nRelease: ${tagName}\n\nMerging this PR will deploy the release to production.`
               });
               
               console.log(`Created PR #${pr.number}: ${pr.html_url}`);
