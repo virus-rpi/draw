@@ -28,7 +28,7 @@ export function usePageVisibility({
         // Listen to history changes (shape additions, modifications, deletions)
         const unsubscribe = editor.store.listen(handleChange, { 
             scope: 'document',
-            source: 'user'
+            source: 'remote'
         })
 
         return () => {
