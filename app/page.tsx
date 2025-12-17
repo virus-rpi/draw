@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 
 const TldrawEditor = dynamic(() => import('@/components/TldrawEditor'), {
-    ssr: false,
+    ssr: true,
 })
 
 export default function App() {
