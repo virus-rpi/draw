@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Editor, Tldraw, useToasts } from 'tldraw'
+import { Editor, Tldraw, useToasts, useDialogs } from 'tldraw'
 import { useSync } from '@tldraw/sync'
 import 'tldraw/tldraw.css'
 import { useColorLock } from './useColorLock'
@@ -25,12 +25,9 @@ import './config/theme'
 export default function TldrawEditor() {
     const { roomId, userId } = useRoomSetup()
     const [writeOwnOnly, setWriteOwnOnly] = useState<boolean>(true)
-    const [showColorLockDialog, setShowColorLockDialog] = useState(false)
-    const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
-    const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
-    const [showSettingsDialog, setShowSettingsDialog] = useState(false)
     const editorRef = useRef<Editor | null>(null)
     const toastAddRef = useRef<ReturnType<typeof useToasts>['addToast'] | null>(null)
+    const dialogsRef = useRef<ReturnType<typeof useDialogs> | null>(null)
 
     const colorLock = useColorLock(roomId, userId)
     const {myLockedColor, lockColor, unlockColor, canUseColor, lockedColors} = colorLock
@@ -78,7 +75,8 @@ export default function TldrawEditor() {
 
     const handleColorLockClick = () => {
         const editor = editorRef.current
-        if (!editor) return
+        const dialogs = dialogsRef.current
+        if (!editor || !dialogs) return
 
         let currentColor = 'black'
 
@@ -90,28 +88,46 @@ export default function TldrawEditor() {
             }
         }
 
-        setColorLockMode('lock')
-
-        setSelectedColorForLock(currentColor)
-        setShowColorLockDialog(true)
+        dialogs.addDialog({
+            component: ({ onClose }) => (
+                <ColorLockDialog
+                    color={currentColor}
+                    isLocking={true}
+                    onConfirm={async (color, password) => {
+                        const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
+                        let result
+                        if (myLock) {
+                            result = await unlockColor(color, password)
+                        } else {
+                            result = await lockColor(color, password)
+                        }
+                        if (result.success) {
+                            toastAddRef.current?.({title: result.message, severity: 'success'})
+                            onClose()
+                        } else {
+                            toastAddRef.current?.({title: `Error: ${result.message}`, severity: 'error'})
+                        }
+                    }}
+                    onClose={onClose}
+                    lockedColors={lockedColors}
+                />
+            ),
+        })
     }
 
-    const handleColorLockConfirm = async ( color: string, password: string, addToast: ReturnType<typeof useToasts>['addToast'] ) => {
-        const myLock = lockedColors.find(lock => lock.color === color && lock.userId === userId)
+    const handleSettingsClick = () => {
+        const dialogs = dialogsRef.current
+        if (!dialogs) return
 
-        let result
-        if (myLock) {
-            result = await unlockColor(color, password)
-        } else {
-            result = await lockColor(color, password)
-        }
-
-        if (result.success) {
-            addToast({title: result.message, severity: 'success'})
-            setShowColorLockDialog(false)
-        } else {
-            addToast({title: `Error: ${result.message}`, severity: 'error'})
-        }
+        dialogs.addDialog({
+            component: ({ onClose }) => (
+                <NotificationSettingsDialog
+                    settings={settings}
+                    onUpdate={updateSettings}
+                    onClose={onClose}
+                />
+            ),
+        })
     }
 
     const store = useSync({
@@ -150,7 +166,7 @@ export default function TldrawEditor() {
                             writeOwnOnly={writeOwnOnly}
                             onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
                             onColorLock={handleColorLockClick}
-                            onSettings={() => setShowSettingsDialog(true)}
+                            onSettings={handleSettingsClick}
                         />
                     ),
                     StylePanel: () => (
@@ -158,10 +174,12 @@ export default function TldrawEditor() {
                     ),
                     InFrontOfTheCanvas: () => {
                         const {addToast} = useToasts()
+                        const dialogs = useDialogs()
 
                         useEffect(() => {
                             toastAddRef.current = addToast
-                        }, [addToast])
+                            dialogsRef.current = dialogs
+                        }, [addToast, dialogs])
 
                         useEffect(() => {
                             const handleShowToast = ( event: any ) => {
@@ -173,26 +191,7 @@ export default function TldrawEditor() {
                             return () => window.removeEventListener('show-toast', handleShowToast)
                         }, [addToast])
 
-                        return (
-                            <>
-                                {showColorLockDialog && (
-                                    <ColorLockDialog
-                                        color={selectedColorForLock}
-                                        isLocking={colorLockMode === 'lock'}
-                                        onConfirm={( color, password ) => handleColorLockConfirm(color, password, addToast)}
-                                        onCancel={() => setShowColorLockDialog(false)}
-                                        lockedColors={lockedColors}
-                                    />
-                                )}
-                                {showSettingsDialog && (
-                                    <NotificationSettingsDialog
-                                        settings={settings}
-                                        onUpdate={updateSettings}
-                                        onClose={() => setShowSettingsDialog(false)}
-                                    />
-                                )}
-                            </>
-                        )
+                        return null
                     },
                 }}
                 onMount={( editor ) => {
