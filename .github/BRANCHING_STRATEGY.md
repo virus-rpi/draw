@@ -55,22 +55,27 @@ This repository uses a two-branch strategy with automated releases.
 
 1. **Release Please monitors the `dev` branch**
    - When changes are pushed to `dev`, Release Please analyzes commit messages
-   - It automatically creates/updates a Release PR from `dev` to `main`
+   - It automatically creates/updates a Release PR on the `dev` branch
    - The Release PR includes:
      - Updated version in `package.json`
      - Generated `CHANGELOG.md` with all changes
      - Proper version bumping based on conventional commits
 
-2. **Review and merge the Release PR**
+2. **Review and merge the Release PR on `dev`**
    - Review the generated changelog and version bump
-   - When ready to release, merge the Release PR from `dev` to `main`
+   - Merge the Release PR to `dev`
    - Release Please will automatically:
-     - Create a GitHub Release
+     - Create a GitHub Release on the `dev` branch
      - Tag the release with the version number
-     - Publish the changelog
+     - Create a new PR from `dev` to `main` for production deployment
 
-3. **After release**
+3. **Deploy to production**
+   - A new PR from `dev` to `main` is automatically created
+   - Review the changes that will go to production
+   - When ready, merge the PR from `dev` to `main`
    - The `main` branch now has the latest production code
+
+4. **After release**
    - Deployments can be triggered from the `main` branch
    - Continue development on `dev` for the next release
 
