@@ -17,13 +17,7 @@ Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docke
 
 ## Contributing
 
-This project uses a two-branch development strategy with automated releases. 
-
-**Quick Start:**
-- Create feature branches from `dev`
-- All PRs should target `dev`
-- Use [Conventional Commits](https://www.conventionalcommits.org/) for commit messages
-- Release Please automatically creates release PRs from `dev` to `main`
+This project uses a two-branch development strategy with automated releases.
 
 ## Getting Started
 
