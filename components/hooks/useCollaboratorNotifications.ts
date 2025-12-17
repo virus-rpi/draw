@@ -3,21 +3,19 @@ import { Editor, TLInstancePresence } from 'tldraw'
 
 interface CollaboratorNotificationsOptions {
     editor: Editor | null
-    enabled: boolean
     onJoin?: (presence: TLInstancePresence) => void
     onLeave?: (presence: TLInstancePresence) => void
 }
 
 export function useCollaboratorNotifications({
     editor,
-    enabled,
     onJoin,
     onLeave,
 }: CollaboratorNotificationsOptions) {
     const prevCollaboratorsRef = useRef<Map<string, TLInstancePresence>>(new Map())
 
     useEffect(() => {
-        if (!editor || !enabled) return
+        if (!editor) return
 
         // Check for changes in collaborators periodically
         const checkInterval = setInterval(() => {
@@ -48,5 +46,5 @@ export function useCollaboratorNotifications({
         }, 1000) // Check every second
 
         return () => clearInterval(checkInterval)
-    }, [editor, enabled, onJoin, onLeave])
+    }, [editor, onJoin, onLeave])
 }

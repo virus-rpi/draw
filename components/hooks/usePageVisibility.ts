@@ -3,13 +3,11 @@ import { Editor } from 'tldraw'
 
 interface PageVisibilityOptions {
     editor: Editor | null
-    enabled: boolean
     onDrawWhileAway?: () => void
 }
 
 export function usePageVisibility({
     editor,
-    enabled,
     onDrawWhileAway,
 }: PageVisibilityOptions) {
     const [isVisible, setIsVisible] = useState(true)
@@ -24,7 +22,7 @@ export function usePageVisibility({
     }, [editor])
 
     useEffect(() => {
-        if (!enabled) return
+        if (!editor) return
 
         const handleVisibilityChange = () => {
             const visible = !document.hidden
@@ -32,13 +30,11 @@ export function usePageVisibility({
 
             if (!visible) {
                 // User left the page - record current shape count
-                if (editor) {
-                    shapeCountRef.current = editor.getCurrentPageShapes().length
-                    hasNotifiedRef.current = false
-                }
+                shapeCountRef.current = editor.getCurrentPageShapes().length
+                hasNotifiedRef.current = false
             } else {
                 // User returned to the page - check if shapes were added
-                if (editor && !hasNotifiedRef.current) {
+                if (!hasNotifiedRef.current) {
                     const currentShapeCount = editor.getCurrentPageShapes().length
                     if (currentShapeCount > shapeCountRef.current) {
                         onDrawWhileAway?.()
@@ -51,7 +47,7 @@ export function usePageVisibility({
 
         document.addEventListener('visibilitychange', handleVisibilityChange)
         return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
-    }, [editor, enabled, onDrawWhileAway])
+    }, [editor, onDrawWhileAway])
 
     return { isVisible }
 }

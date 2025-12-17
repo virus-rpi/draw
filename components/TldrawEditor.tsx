@@ -40,7 +40,6 @@ export default function TldrawEditor() {
     // Handle collaborator join/leave notifications - always enabled
     useCollaboratorNotifications({
         editor: editorRef.current,
-        enabled: true,
         onJoin: (presence) => {
             toastAddRef.current?.({
                 title: `${presence.userName || 'A user'} joined`,
@@ -58,7 +57,6 @@ export default function TldrawEditor() {
     // Handle page visibility and draw notifications - always enabled
     usePageVisibility({
         editor: editorRef.current,
-        enabled: true,
         onDrawWhileAway: () => {
             toastAddRef.current?.({
                 title: 'Someone drew while you were away',
