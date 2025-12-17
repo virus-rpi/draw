@@ -17,7 +17,7 @@ Deploy frontend to **Vercel** and sync server to your **Raspberry Pi** via Docke
 
 ## Contributing
 
-This project uses a two-branch development strategy with automated releases. See [.github/BRANCHING_STRATEGY.md](./.github/BRANCHING_STRATEGY.md) for details.
+This project uses a two-branch development strategy with automated releases. 
 
 **Quick Start:**
 - Create feature branches from `dev`
