@@ -17,6 +17,7 @@ import { useEditorHandlers } from './hooks/useEditorHandlers'
 import { useNotificationSettings } from './hooks/useNotificationSettings'
 import { useCollaboratorNotifications } from './hooks/useCollaboratorNotifications'
 import { usePageVisibility } from './hooks/usePageVisibility'
+import { useBrowserNotifications } from './hooks/useBrowserNotifications'
 import { NotificationSettingsDialog } from './NotificationSettingsDialog'
 import './config/theme'
 
@@ -40,6 +41,7 @@ export default function TldrawEditor() {
     })
 
     const { settings, updateSettings } = useNotificationSettings()
+    const { sendNotification } = useBrowserNotifications({ enabled: settings.notifyOnDraw })
 
     // Handle collaborator join/leave notifications
     useCollaboratorNotifications({
@@ -67,6 +69,13 @@ export default function TldrawEditor() {
             toastAddRef.current?.({
                 title: 'Someone drew while you were away',
                 severity: 'info',
+            })
+        },
+        onDrawWhileAwayBrowser: () => {
+            sendNotification('Draw - New Activity', {
+                body: 'Someone drew while you were away',
+                tag: 'draw-notification',
+                requireInteraction: false,
             })
         },
     })

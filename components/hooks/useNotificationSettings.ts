@@ -6,7 +6,7 @@ export interface NotificationSettings {
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
-    notifyOnDraw: true,
+    notifyOnDraw: false,
     notifyOnJoinLeave: true,
 }
 

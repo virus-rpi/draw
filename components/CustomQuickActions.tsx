@@ -33,7 +33,7 @@ export function CustomQuickActions( {
             />
             <TldrawUiMenuItem
                 id="notification-settings"
-                icon="bell"
+                icon="info-circle"
                 onSelect={onSettings}
                 label="Notification Settings"
             />
