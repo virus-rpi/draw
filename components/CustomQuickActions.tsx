@@ -8,12 +8,14 @@ interface CustomQuickActionsProps {
     writeOwnOnly: boolean
     onToggle: () => void
     onColorLock: () => void
+    onSettings: () => void
 }
 
 export function CustomQuickActions( {
                                          writeOwnOnly,
                                          onToggle,
                                          onColorLock,
+                                         onSettings,
                                      }: CustomQuickActionsProps ) {
     return (
         <DefaultQuickActions>
@@ -28,6 +30,12 @@ export function CustomQuickActions( {
                 icon="color"
                 onSelect={onColorLock}
                 label="Lock/Unlock Color"
+            />
+            <TldrawUiMenuItem
+                id="notification-settings"
+                icon="bell"
+                onSelect={onSettings}
+                label="Notification Settings"
             />
         </DefaultQuickActions>
     )

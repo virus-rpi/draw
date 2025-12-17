@@ -14,6 +14,10 @@ import { getEmbedConfigs } from './utils/embedConfig'
 import { getSyncUrl } from './utils/syncUrl'
 import { useRoomSetup } from './hooks/useRoomSetup'
 import { useEditorHandlers } from './hooks/useEditorHandlers'
+import { useNotificationSettings } from './hooks/useNotificationSettings'
+import { useCollaboratorNotifications } from './hooks/useCollaboratorNotifications'
+import { usePageVisibility } from './hooks/usePageVisibility'
+import { NotificationSettingsDialog } from './NotificationSettingsDialog'
 import './config/theme'
 
 
@@ -24,7 +28,9 @@ export default function TldrawEditor() {
     const [showColorLockDialog, setShowColorLockDialog] = useState(false)
     const [colorLockMode, setColorLockMode] = useState<'lock' | 'unlock'>('lock')
     const [selectedColorForLock, setSelectedColorForLock] = useState<string>('')
+    const [showSettingsDialog, setShowSettingsDialog] = useState(false)
     const editorRef = useRef<Editor | null>(null)
+    const toastAddRef = useRef<ReturnType<typeof useToasts>['addToast'] | null>(null)
 
     const colorLock = useColorLock(roomId, userId)
     const {myLockedColor, lockColor, unlockColor, canUseColor, lockedColors} = colorLock
@@ -34,6 +40,38 @@ export default function TldrawEditor() {
         canUseColor,
         lockedColors,
         userId,
+    })
+
+    const { settings, updateSettings } = useNotificationSettings()
+
+    // Handle collaborator join/leave notifications
+    useCollaboratorNotifications({
+        editor: editorRef.current,
+        enabled: settings.notifyOnJoinLeave,
+        onJoin: (presence) => {
+            toastAddRef.current?.({
+                title: `${presence.userName || 'A user'} joined`,
+                severity: 'info',
+            })
+        },
+        onLeave: (presence) => {
+            toastAddRef.current?.({
+                title: `${presence.userName || 'A user'} left`,
+                severity: 'info',
+            })
+        },
+    })
+
+    // Handle page visibility and draw notifications
+    usePageVisibility({
+        editor: editorRef.current,
+        enabled: settings.notifyOnDraw,
+        onDrawWhileAway: () => {
+            toastAddRef.current?.({
+                title: 'Someone drew while you were away',
+                severity: 'info',
+            })
+        },
     })
 
 
@@ -112,6 +150,7 @@ export default function TldrawEditor() {
                             writeOwnOnly={writeOwnOnly}
                             onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
                             onColorLock={handleColorLockClick}
+                            onSettings={() => setShowSettingsDialog(true)}
                         />
                     ),
                     StylePanel: () => (
@@ -119,6 +158,10 @@ export default function TldrawEditor() {
                     ),
                     InFrontOfTheCanvas: () => {
                         const {addToast} = useToasts()
+
+                        useEffect(() => {
+                            toastAddRef.current = addToast
+                        }, [addToast])
 
                         useEffect(() => {
                             const handleShowToast = ( event: any ) => {
@@ -130,15 +173,26 @@ export default function TldrawEditor() {
                             return () => window.removeEventListener('show-toast', handleShowToast)
                         }, [addToast])
 
-                        return showColorLockDialog ? (
-                            <ColorLockDialog
-                                color={selectedColorForLock}
-                                isLocking={colorLockMode === 'lock'}
-                                onConfirm={( color, password ) => handleColorLockConfirm(color, password, addToast)}
-                                onCancel={() => setShowColorLockDialog(false)}
-                                lockedColors={lockedColors}
-                            />
-                        ) : null
+                        return (
+                            <>
+                                {showColorLockDialog && (
+                                    <ColorLockDialog
+                                        color={selectedColorForLock}
+                                        isLocking={colorLockMode === 'lock'}
+                                        onConfirm={( color, password ) => handleColorLockConfirm(color, password, addToast)}
+                                        onCancel={() => setShowColorLockDialog(false)}
+                                        lockedColors={lockedColors}
+                                    />
+                                )}
+                                {showSettingsDialog && (
+                                    <NotificationSettingsDialog
+                                        settings={settings}
+                                        onUpdate={updateSettings}
+                                        onClose={() => setShowSettingsDialog(false)}
+                                    />
+                                )}
+                            </>
+                        )
                     },
                 }}
                 onMount={( editor ) => {
