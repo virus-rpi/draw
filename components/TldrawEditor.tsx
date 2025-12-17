@@ -25,9 +25,12 @@ export default function TldrawEditor() {
     const editorRef = useRef<Editor | null>(null)
     const toastAddRef = useRef<ReturnType<typeof useToasts>['addToast'] | null>(null)
     const dialogsRef = useRef<ReturnType<typeof useDialogs> | null>(null)
+    const customMessageHandlerRef = useRef<(( data: any ) => void) | null>(null)
 
-    const colorLock = useColorLock(roomId, userId)
-    const {myLockedColor, lockColor, unlockColor, canUseColor, lockedColors, connectionStatus} = colorLock
+    const colorLock = useColorLock(roomId, userId, ( handler ) => {
+        customMessageHandlerRef.current = handler
+    })
+    const {myLockedColor, lockColor, unlockColor, canUseColor, lockedColors} = colorLock
 
     const {setupEditorHandlers} = useEditorHandlers({
         writeOwnOnly,
@@ -114,6 +117,11 @@ export default function TldrawEditor() {
             name: `User ${userId.slice(0, 8)}`,
             ...(myLockedColor ? {color: myLockedColor} : {}),
         } : undefined,
+        onCustomMessageReceived: ( data: any ) => {
+            if (customMessageHandlerRef.current) {
+                customMessageHandlerRef.current(data)
+            }
+        },
     })
 
     if (!roomId) {

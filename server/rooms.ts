@@ -1,6 +1,7 @@
 import { RoomSnapshot, TLSocketRoom } from '@tldraw/sync-core'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
+import { getAllLockedColors } from './colorLocks'
 
 const DIR = './.rooms'
 mkdirSync(DIR, {recursive: true})
@@ -66,3 +67,26 @@ export function makeOrLoadRoom( roomId: string ): TLSocketRoom<any, void> {
     rooms.set(roomId, room)
     return room
 }
+
+export function broadcastColorLocks( roomId: string ): void {
+    const room = getRoomById(roomId)
+    if (!room || room.isClosed()) return
+
+    const locks = getAllLockedColors(roomId)
+    const message = {
+        type: 'color-lock-update',
+        locks,
+    }
+
+    const sessions = room.getSessions()
+    for (const session of sessions) {
+        if (session.isConnected) {
+            room.sendCustomMessage(session.sessionId, message)
+        }
+    }
+}
+
+export function getRoomById( roomId: string ): TLSocketRoom<any, void> | undefined {
+    return rooms.get(sanitizeRoomId(roomId))
+}
+

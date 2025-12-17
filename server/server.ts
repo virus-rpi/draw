@@ -3,7 +3,7 @@ import websocketPlugin from '@fastify/websocket'
 import fastify from 'fastify'
 import type { RawData } from 'ws'
 import { loadAsset, storeAsset } from './assets'
-import { makeOrLoadRoom } from './rooms'
+import { broadcastColorLocks, makeOrLoadRoom } from './rooms'
 import { unfurl } from './unfurl'
 import { getAllLockedColors, getUserLockedColor, lockColor, unlockColor } from './colorLocks'
 
@@ -38,6 +38,14 @@ app.register(async ( app ) => {
         for (const message of caughtMessages) {
             socket.emit('message', message)
         }
+
+        setTimeout(() => {
+            const locks = getAllLockedColors(roomId)
+            room.sendCustomMessage(sessionId, {
+                type: 'color-lock-update',
+                locks,
+            })
+        }, 100)
     })
 
     app.addContentTypeParser('application/json', {parseAs: 'string'}, ( req, body, done ) => {
@@ -86,6 +94,11 @@ app.register(async ( app ) => {
         }
 
         const result = lockColor(roomId, color, userId, password)
+
+        if (result.success) {
+            broadcastColorLocks(roomId)
+        }
+
         res.code(result.success ? 200 : 400)
         return result
     })
@@ -100,6 +113,11 @@ app.register(async ( app ) => {
         }
 
         const result = unlockColor(roomId, color, userId, password)
+
+        if (result.success) {
+            broadcastColorLocks(roomId)
+        }
+
         res.code(result.success ? 200 : 400)
         return result
     })
@@ -115,47 +133,6 @@ app.register(async ( app ) => {
         const userId = (req.params as any).userId as string
         const lockedColor = getUserLockedColor(roomId, userId)
         return {color: lockedColor || null}
-    })
-
-    app.get('/color-locks-ws/:roomId', {websocket: true}, async ( socket, req ) => {
-        const roomId = (req.params as any).roomId as string
-        console.log(`Color lock WebSocket connection to room ${roomId}`)
-
-        try {
-            const locks = getAllLockedColors(roomId)
-            socket.send(JSON.stringify({type: 'color-lock-update', locks}))
-        } catch (error) {
-            console.error('Failed to send initial color lock state:', error)
-        }
-
-        const interval = setInterval(() => {
-            try {
-                const locks = getAllLockedColors(roomId)
-                socket.send(JSON.stringify({type: 'color-lock-update', locks}))
-            } catch (error) {
-                clearInterval(interval)
-            }
-        }, 1000)
-
-        socket.on('message', ( data ) => {
-            try {
-                const message = JSON.parse(data.toString())
-                if (message.type === 'ping') {
-                    socket.send(JSON.stringify({type: 'pong'}))
-                }
-            } catch (error) {
-            }
-        })
-
-        socket.on('close', () => {
-            console.log(`Color lock WebSocket disconnected from room ${roomId}`)
-            clearInterval(interval)
-        })
-
-        socket.on('error', ( error ) => {
-            console.error(`Color lock WebSocket error for room ${roomId}:`, error)
-            clearInterval(interval)
-        })
     })
 })
 

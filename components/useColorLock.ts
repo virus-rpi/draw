@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export interface LockedColor {
     color: string
@@ -11,6 +11,9 @@ export interface ColorLockResult {
     previousLock?: string
 }
 
+export interface ColorLockCustomMessageHandler {
+    ( data: any ): void
+}
 
 const getSyncServerUrl = () => {
     if (process.env.NEXT_PUBLIC_SYNC_SERVER_URL) {
@@ -19,19 +22,9 @@ const getSyncServerUrl = () => {
     return 'http://localhost:5858'
 }
 
-const getWsServerUrl = () => {
-    const baseUrl = getSyncServerUrl()
-    return baseUrl.replace(/^http/, 'ws')
-}
-
-export function useColorLock( roomId: string, userId: string ) {
+export function useColorLock( roomId: string, userId: string, customMessageHandler?: ColorLockCustomMessageHandler ) {
     const [lockedColors, setLockedColors] = useState<LockedColor[]>([])
     const [myLockedColor, setMyLockedColor] = useState<string | null>(null)
-    const wsRef = useRef<WebSocket | null>(null)
-    const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-    const reconnectAttemptsRef = useRef(0)
-    const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
-    const isManualCloseRef = useRef(false)
 
     const fetchLockedColors = useCallback(async () => {
         if (!roomId) return
@@ -63,127 +56,34 @@ export function useColorLock( roomId: string, userId: string ) {
         }
     }, [roomId, userId])
 
-    const connectWebSocket = useCallback(() => {
-        if (!roomId || !userId) return
+    const handleCustomMessage = useCallback(( data: any ) => {
+        if (data.type === 'color-lock-update') {
+            const newLocks: LockedColor[] = data.locks || []
+            const serialized = JSON.stringify(newLocks)
 
-        if (reconnectTimeoutRef.current) {
-            clearTimeout(reconnectTimeoutRef.current)
-            reconnectTimeoutRef.current = null
+            setLockedColors(prev => {
+                if (JSON.stringify(prev) === serialized) return prev
+                return newLocks
+            })
+
+            const myLock = newLocks.find(( lock: LockedColor ) => lock.userId === userId)
+            setMyLockedColor(prev => {
+                const newColor = myLock?.color || null
+                return prev === newColor ? prev : newColor
+            })
         }
+    }, [userId])
 
-        if (wsRef.current) {
-            isManualCloseRef.current = true
-            wsRef.current.close()
-            wsRef.current = null
+    useEffect(() => {
+        if (customMessageHandler) {
+            customMessageHandler(handleCustomMessage)
         }
-
-        const wsUrl = `${getWsServerUrl()}/color-locks-ws/${encodeURIComponent(roomId)}`
-        const ws = new WebSocket(wsUrl)
-
-        const connectionTimeout = setTimeout(() => {
-            if (ws.readyState === WebSocket.CONNECTING) {
-                console.log('WebSocket connection timeout')
-                ws.close()
-            }
-        }, 10000)
-
-        ws.onopen = () => {
-            clearTimeout(connectionTimeout)
-            console.log('Color lock WebSocket connected')
-            reconnectAttemptsRef.current = 0
-
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current)
-            }
-            heartbeatIntervalRef.current = setInterval(() => {
-                if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({type: 'ping'}))
-                }
-            }, 30000) // Ping every 30 seconds
-        }
-
-        ws.onmessage = ( event ) => {
-            try {
-                const data = JSON.parse(event.data)
-
-                if (data.type === 'pong') {
-                    return
-                }
-
-                if (data.type === 'color-lock-update') {
-                    const newLocks: LockedColor[] = data.locks || []
-                    const serialized = JSON.stringify(newLocks)
-
-                    setLockedColors(prev => {
-                        if (JSON.stringify(prev) === serialized) return prev
-                        return newLocks
-                    })
-
-                    const myLock = newLocks.find(( lock: LockedColor ) => lock.userId === userId)
-                    setMyLockedColor(prev => {
-                        const newColor = myLock?.color || null
-                        return prev === newColor ? prev : newColor
-                    })
-                }
-            } catch (error) {
-                console.error('Failed to parse WebSocket message:', error)
-            }
-        }
-
-        ws.onerror = ( error ) => {
-            clearTimeout(connectionTimeout)
-            console.error('WebSocket error:', error)
-        }
-
-        ws.onclose = ( event ) => {
-            clearTimeout(connectionTimeout)
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current)
-                heartbeatIntervalRef.current = null
-            }
-
-            console.log('Color lock WebSocket disconnected', event.code, event.reason)
-
-            if (!isManualCloseRef.current) {
-                const backoffDelay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000)
-                console.log(`Reconnecting in ${backoffDelay}ms (attempt ${reconnectAttemptsRef.current + 1})`)
-
-                reconnectAttemptsRef.current++
-                reconnectTimeoutRef.current = setTimeout(() => {
-                    connectWebSocket()
-                }, backoffDelay)
-            } else {
-                isManualCloseRef.current = false
-            }
-        }
-
-        wsRef.current = ws
-    }, [roomId, userId])
+    }, [customMessageHandler, handleCustomMessage])
 
     useEffect(() => {
         if (!roomId || !userId) return
-        fetchLockedColors().then()
-        connectWebSocket()
-
-        return () => {
-            isManualCloseRef.current = true
-
-            if (reconnectTimeoutRef.current) {
-                clearTimeout(reconnectTimeoutRef.current)
-                reconnectTimeoutRef.current = null
-            }
-
-            if (heartbeatIntervalRef.current) {
-                clearInterval(heartbeatIntervalRef.current)
-                heartbeatIntervalRef.current = null
-            }
-
-            if (wsRef.current) {
-                wsRef.current.close()
-                wsRef.current = null
-            }
-        }
-    }, [roomId, userId, connectWebSocket, fetchLockedColors])
+        fetchLockedColors()
+    }, [roomId, userId, fetchLockedColors])
 
     const lockColor = useCallback(async ( color: string, password: string ): Promise<ColorLockResult> => {
         const maxRetries = 3
