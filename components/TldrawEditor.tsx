@@ -14,11 +14,8 @@ import { getEmbedConfigs } from './utils/embedConfig'
 import { getSyncUrl } from './utils/syncUrl'
 import { useRoomSetup } from './hooks/useRoomSetup'
 import { useEditorHandlers } from './hooks/useEditorHandlers'
-import { useNotificationSettings } from './hooks/useNotificationSettings'
 import { useCollaboratorNotifications } from './hooks/useCollaboratorNotifications'
 import { usePageVisibility } from './hooks/usePageVisibility'
-import { useBrowserNotifications } from './hooks/useBrowserNotifications'
-import { NotificationSettingsDialog } from './NotificationSettingsDialog'
 import './config/theme'
 
 
@@ -40,13 +37,10 @@ export default function TldrawEditor() {
         userId,
     })
 
-    const { settings, updateSettings } = useNotificationSettings()
-    const { sendNotification } = useBrowserNotifications({ enabled: settings.notifyOnDraw })
-
-    // Handle collaborator join/leave notifications
+    // Handle collaborator join/leave notifications - always enabled
     useCollaboratorNotifications({
         editor: editorRef.current,
-        enabled: settings.notifyOnJoinLeave,
+        enabled: true,
         onJoin: (presence) => {
             toastAddRef.current?.({
                 title: `${presence.userName || 'A user'} joined`,
@@ -61,21 +55,14 @@ export default function TldrawEditor() {
         },
     })
 
-    // Handle page visibility and draw notifications
+    // Handle page visibility and draw notifications - always enabled
     usePageVisibility({
         editor: editorRef.current,
-        enabled: settings.notifyOnDraw,
+        enabled: true,
         onDrawWhileAway: () => {
             toastAddRef.current?.({
                 title: 'Someone drew while you were away',
                 severity: 'info',
-            })
-        },
-        onDrawWhileAwayBrowser: () => {
-            sendNotification('Draw - New Activity', {
-                body: 'Someone drew while you were away',
-                tag: 'draw-notification',
-                requireInteraction: false,
             })
         },
     })
@@ -124,20 +111,7 @@ export default function TldrawEditor() {
         })
     }
 
-    const handleSettingsClick = () => {
-        const dialogs = dialogsRef.current
-        if (!dialogs) return
 
-        dialogs.addDialog({
-            component: ({ onClose }) => (
-                <NotificationSettingsDialog
-                    settings={settings}
-                    onUpdate={updateSettings}
-                    onClose={onClose}
-                />
-            ),
-        })
-    }
 
     const store = useSync({
         uri: getSyncUrl(roomId),
@@ -175,7 +149,6 @@ export default function TldrawEditor() {
                             writeOwnOnly={writeOwnOnly}
                             onToggle={() => setWriteOwnOnly(!writeOwnOnly)}
                             onColorLock={handleColorLockClick}
-                            onSettings={handleSettingsClick}
                         />
                     ),
                     StylePanel: () => (
