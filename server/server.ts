@@ -137,6 +137,16 @@ app.register(async ( app ) => {
             }
         }, 1000)
 
+        socket.on('message', ( data ) => {
+            try {
+                const message = JSON.parse(data.toString())
+                if (message.type === 'ping') {
+                    socket.send(JSON.stringify({type: 'pong'}))
+                }
+            } catch (error) {
+            }
+        })
+
         socket.on('close', () => {
             console.log(`Color lock WebSocket disconnected from room ${roomId}`)
             clearInterval(interval)

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import React from 'react'
 import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 export const metadata: Metadata = {
     title: 'Draw',
@@ -23,7 +24,11 @@ export default function RootLayout( {
 }> ) {
     return (
         <html lang="en">
+        <head>
+            <link rel="preconnect" href={process.env.NEXT_PUBLIC_SYNC_SERVER_URL}/>
+        </head>
         <Analytics/>
+        <SpeedInsights/>
         <body className="antialiased">{children}</body>
         </html>
     )
